@@ -1,0 +1,23 @@
+[package]
+name = "shinypenny"
+version = "0.1.0"
+authors = ["Bernhard Schuster <bernhard@ahoi.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+docopt = "1"
+csv = "1"
+serde = { version = "1", features = ["derive"] }
+log = "0.4"
+pretty_env_logger = "0.4"
+lazy_static = "1"
+indexmap = "1"
+anyhow = "1"
+dirs = "3"
+regex = "1"
+lopdf = "0.26"
+float-cmp = "0.8"
+printpdf = { git = "https://github.com/drahnr/printpdf.git" }
+iban_validate = { version = "4", features = ["std", "serde"] }
+fints-institute-db = "1"
