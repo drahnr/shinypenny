@@ -1,222 +1,157 @@
+use std::io::BufRead;
+use std::path::PathBuf;
+
 use docopt::Docopt;
 use serde::Deserialize;
-use serde::Serialize;
-use log::{warn,error,debug,trace};
 
-use lazy_static::lazy_static;
-use regex::Regex;
+use fs_err as fs;
 
 mod errors;
-
 pub use errors::*;
+
+mod types;
+pub use types::*;
 
 mod pdf;
 
+mod config;
+use config::Config;
 
 const USAGE: &'static str = r#"
 shinypenny
 
 Usage:
-  shinypenny [--title=<title>] [--learning-budget] <file>..
-  shinypenny --csv <csv>
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --learning-budget --brutto=<brutto> --tax-percent=<taxpercent> --netto=<netto> <receipt> [<dest>]
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] --csv=<csv> [<dest>]
+  shinypenny config
   shinypenny --version
 
 Options:
-  --version            Show version.
-  -h --help            Show this screen.
-  --learning-budget    Deduct from learning budget.
+  --version                   Show version.
+  -v --verbose                Verbosity level.
+  -q --quiet                  Silence all messages, dominates `-v`.
+  -h --help                   Show this screen.
+  --learning                  Deduct from learning budget.
+  -c --config                 An alternative configuration file.
+  --desc=<desc>               What was purchased.
+  --brutto=<brutto>           Amount of € to be re-imbursed (includes tax).
+  --tax-percent=<taxpercent>  The tax percentage used.
+  --netto=<netto>             Value of the service goods without added tax.
+  --date=<date>               The dete of the .
 "#;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Args {
-    flag_version: bool,
-    arg_file: Vec<std::path::PathBuf>,
-    flag_label: String,
-    flag_title: String,
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Euro(f64);
-
-
-use std::str::FromStr;
-use std::convert::AsRef;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Percentage(f64);
-
-impl FromStr for Percentage {
-    type Err = ::anyhow::Error;
-    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
-        lazy_static! {
-            static ref W_PERECENT: Regex = Regex::new(r#"^\s*([0-9]+(?:[,.][0-9]+))?\s*%\s*$"#);
-        };
-        lazy_static! {
-            static ref WO_PERECENT: Regex = Regex::new(r#"^\s*([0-9]+(?:[,.][0-9]+))?\s*$"#);
-        };
-        let w = W_PERECENT.captures(s);
-        let wo = WO_PERECENT.captures(s);
-        if w.is_some() && !wo.is_some() {
-            let val = f64::from_str(s)?;
-            Ok(Percentage(val))
-        } else if !w.is_some() && wo.is_some() {
-            let val = f64::from_str(s)?;
-            // heuristic!
-            if val > 1.0 {
-                Ok(Percentage(val))
-            } else {
-                Ok(Percentage(val))
-            }
-        } else {
-            bail!("Is not an acceptable percentage value")
-        }
-    }
-}
-
-use core::ops::{Mul, Add, AddAssign, Sub};
-
-impl Mul<Percentage> for Euro {
-    type Output = Self;
-    fn mul(self, rhs: Percentage) -> Self::Output {
-        Euro(self.0 * rhs.0)
-    }
-}
-
-impl Add<Euro> for Euro {
-    type Output = Self;
-    fn add(self, rhs: Euro) -> Self::Output {
-        Euro(self.0 + rhs.0)
-    }
-}
-
-impl AddAssign<Euro> for Euro {
-    fn add_assign(&mut self, rhs: Euro) {
-        self.0 += rhs.0
-    }
-}
-
-impl Sub<Euro> for Euro {
-    type Output = Self;
-    fn sub(self, rhs: Euro) -> Self::Output {
-        Euro(self.0 - rhs.0)
-    }
-}
-
-use core::cmp::{PartialOrd, Ordering};
-
-impl PartialEq<Euro> for Euro {
-    fn eq(&self, other: &Self) -> bool {
-        f64::abs(self.0 - other.0) < EPSILON
-    }
-}
-
-impl PartialOrd<Euro> for Euro {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-
 #[derive(Debug, Deserialize)]
-struct Record {
-    brutto: Euro,
-    percentage: Percentage,
-    netto: Euro,
+struct Args {
+    arg_dest: Option<PathBuf>,
+    cmd_config: bool,
+    flag_date: Option<chrono::NaiveDate>,
+    flag_company: Option<String>,
+    flag_receipt: Option<PathBuf>,
+    flag_brutto: Option<Euro>,
+    flag_taxpercent: Option<Percentage>,
+    flag_netto: Option<Euro>,
+    flag_desc: Option<String>,
+    flag_version: bool,
+    flag_verbose: Option<usize>,
+    flag_quiet: bool,
+    flag_learning: bool,
+    flag_csv: Option<PathBuf>,
+    flag_config: Option<PathBuf>,
 }
 
-/// DIN A4 in mm dimensions (HxW)
-const DIN_A4: (f32, f32) = (297_f32, 210_f32);
-
-use printpdf::*;
-
-
+use float_cmp::ApproxEq;
 use lopdf::Document;
 
-
-use iban::Iban;
-
-#[derive(Debug)]
-pub(crate) struct BankInfo {
-    /// Full name of the bank account owner.
-    name: String,
-    /// IBAN contains all info about the bank, so that's all needed
-    iban: Iban,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Row {
-    brutto: f64,
-    netto: f64,
-    tax_total: f64,
-    tax_percentage: f64,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Totals {
-    brutto: f64,
-    netto: f64,
-    tax_total: f64,
-}
-
-impl Totals {
-    fn add(&mut self, other: Totals) {
-        self.brutto += other.brutto;
-        self.netto += other.netto;
-        self.tax_total += other.tax_total;
-    }
-}
-
-const EPSILON: f64 = 0.004; // don't care about less than half a cent up or down
-
-fn create_pdf(records: &[Record]) -> Result<Document> {
-
+/// Create the pdf from all records
+fn create_pdf(
+    records: &[Record],
+    bankinfo: BankInfo,
+    companyinfo: CompanyInfo,
+    learning_budget: bool,
+) -> Result<Document> {
     let mut documents = Vec::with_capacity(records.len() + 1);
 
     let mut rows = Vec::with_capacity(records.len());
-    let mut totals = Row {
-        brutto: 0.0f64,
-        netto: 0.0f64,
-        tax_total: 0.0f64,
-        tax_percentage: 0.0f64,
-    };
+    let mut totals = Totals::default();
 
-    for record in records {
-        let document = Document::load_from(record.path)?;
-        documents.push(document);
+    // we want to create a column for each tax value
+    let mut tax_percentage_set = indexmap::IndexSet::<Percentage>::default();
+
+    // transform the csv `Record`s into table `Row` types
+    let mut receipts = Vec::with_capacity(32);
+
+    for record in records.into_iter() {
+        receipts.push((record.description.as_str(), &record.path));
 
         let brutto = record.brutto;
         let netto = record.netto;
-        let percentage = record.percentage;
+        let percentage = record.tax;
         if brutto < netto {
-            bail!("For expenses, brutto must be larger than netto. Netto includes taxes addition/deduction, brutto does not.");
-
+            bail!("For expenses, `netto` must be less than `brutto`.");
         }
-        let delta = netto - brutto;
+        let delta: Euro = brutto - netto;
 
-        if delta.percentage.approx_cmp(netto * percentage, EPSILON) {
-            bail!("The percentage does not match the delta between brutton and netto");
+        let derived = (brutto * percentage).floor_whole_cents();
+        if !&delta.approx_eq(derived, EPSILON) {
+            bail!(
+                "The percentage {} derived delta {} does not match the provided delta {} between brutto {} and netto {} with a max epsilon error of {}",
+                percentage,
+                derived,
+                delta,
+                brutto,
+                netto, EPSILON
+            );
         }
+
+        // track all tax percentage values
+        // commonly 0; 5; 7; 16; 19
+        tax_percentage_set.insert(percentage);
 
         let row = Row {
+            date: Date::from_utc(record.date, chrono::FixedOffset::west(0)), // TODO assume
+            description: record.description.clone(),
+            company: record.company.clone(),
             brutto,
             netto,
-            tax_total: delta,
-            tax_percentage: percentage,
+            tax_total: indexmap::indexmap! { percentage => delta },
         };
 
         totals.add(&row);
         rows.push(row);
     }
 
+    // fill up all rows to the same number
+    for row in rows.iter_mut() {
+        use itertools::Itertools;
 
-    let bankinfo = BankInfo {
-        name: "Bernhard Schuster".to_owned(),
-        iban: "DE24....32606283476239".parse().unwrap(),
-    };
+        for percentage in tax_percentage_set.iter() {
+            row.tax_total.entry(*percentage).or_default();
+        }
+        row.tax_total = row
+            .tax_total
+            .clone()
+            .into_iter()
+            .sorted_by(|(p1, _), (p2, _)| p1.cmp(&p2))
+            .collect();
+    }
 
-    documents.insert(0, pdf::tabular(bankinfo, &rows, totals)?);
-    
-    let x = pdf::combine(&documents)?;
+    log::info!("Number integrity checks and folding complete");
+
+    for (desc, path) in receipts {
+        documents.push(pdf::separation_page(desc)?);
+        let document = pdf::load_receipt(path)?;
+        documents.push(document);
+    }
+
+    log::info!("Receipt document loading complete");
+
+    let tabular = pdf::tabular(bankinfo, companyinfo, &rows, totals, learning_budget)?;
+
+    documents.insert(0, tabular);
+
+    let x = pdf::combine(&mut documents)?;
+
+    log::info!("Document creation complete");
 
     Ok(x)
 }
@@ -226,37 +161,246 @@ fn run() -> Result<()> {
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
 
+    let level = if args.flag_quiet {
+        log::LevelFilter::Warn
+    } else if let Some(verbosity) = args.flag_verbose {
+        match verbosity {
+            x if x >= 4 => log::LevelFilter::Trace,
+            3 => log::LevelFilter::Debug,
+            2 => log::LevelFilter::Info,
+            1 => log::LevelFilter::Warn,
+            0 => log::LevelFilter::Error,
+            _ => log::LevelFilter::Warn,
+        }
+    } else {
+        log::LevelFilter::Warn
+    };
+
+    pretty_env_logger::formatted_builder()
+        .filter_level(level)
+        .init();
 
     if args.flag_version {
         println!("shinypenny {}", env!("CARGO_PKG_VERSION"));
-        return Ok(())
+        return Ok(());
     }
 
-    let mut data = Vec::with_capacity(256);
-    let path = unimplemented!("...");
-    let file = std::fs::OpenOptions::new().read(true).write(false).truncate(false).open(path);
-    let mut buffered = std::io::BufReader::with_capacity(4096, file);
-    let mut rdr = csv::ReaderBuilder::new()
-        .has_headers(false)
-        .delimiter(b',')
-        .flexible(true)
-        .from_reader(buffered);
+    let config = if let Some(config) = args.flag_config {
+        Config::from_file(&config)
+    } else {
+        log::info!(
+            "Using default user config path {}",
+            Config::user_config_path()?.display()
+        );
+        Config::load_user_config()
+    }?;
 
-    let mut first_valid_record = false;
-    for rec in rdr.records() {
-        let rec = rec.map_err(|_e| anyhow!("Failed to parse csv line"))?;
-
-        rec.deserialize::<Record>(None)
-            .map_err(|_e| anyhow!("Failed to parse record"))
-            .unwrap_or_else(|e| {
-                warn!("Failed to convert {:?}", e);
-                ()
-            });
-
+    if args.cmd_config {
+        println!("{:?}", config);
+        return Ok(());
     }
+
+    let dest = if let Some(dest) = args.arg_dest {
+        dest
+    } else {
+        let today = chrono::Local::today();
+        let file_name = today
+            .format("reimbursement_request_%Y_%m_%d.pdf")
+            .to_string();
+        let dest = std::env::current_dir()
+            .expect("CWD must exists")
+            .join(file_name);
+        log::info!("Using default file name {}", dest.display());
+        dest
+    };
+
+    // collect csv `Record`s
+    let data = if let Some(path) = args.flag_csv.as_ref() {
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(false)
+            .truncate(false)
+            .open(path)
+            .map_err(|_e| anyhow!("Failed to open passed --csv <{}>", path.display()))?;
+        let mut buffered = std::io::BufReader::with_capacity(4096, &mut file);
+
+        // attempt once with each separator
+        const SEP: &[u8] = &[b'|', b';', b','];
+        let mut r = Err(anyhow!("unreachable"));
+        for sep in SEP.into_iter().copied() {
+            let buffered = std::io::BufReader::with_capacity(4096, &mut buffered);
+            r = data_plumbing(buffered, sep);
+            if r.is_ok() {
+                break;
+            }
+            log::warn!(
+                "Splitting with separator '{}' failed, trying next",
+                sep as char
+            );
+        }
+        let data = r.map_err(|_e| anyhow!("No separator could read the provided data stream"))?;
+        data
+    } else {
+        // create a single record from the provided commandline flags
+        vec![Record {
+            date: args.flag_date.unwrap_or_else(|| {
+                let today = chrono::Local::today();
+                today.naive_local()
+            }),
+            description: args
+                .flag_desc
+                .expect("docopt assured description has a value. qed"),
+            company: args
+                .flag_company
+                .unwrap_or_else(|| config.company.name.clone()),
+            netto: args
+                .flag_netto
+                .expect("docopt assured netto has a value. qed"),
+            tax: args
+                .flag_taxpercent
+                .expect("docopt assured tax has a value. qed"),
+            brutto: args
+                .flag_brutto
+                .expect("docopt assured brutto has a value. qed"),
+            path: args
+                .flag_receipt
+                .expect("docopt assured path has a value. qed"),
+        }]
+    };
+
+    let bankinfo = BankInfo::new(&config.name, config.iban)?;
+
+    log::info!("BankInfo: {:?}", &bankinfo);
+    log::info!("Institute: {}", bankinfo.institute().unwrap());
+
+    let company = &config.company;
+    let companyinfo = CompanyInfo::new(&company.name, &company.address, company.image.clone())?;
+
+    let mut document = create_pdf(&data, bankinfo, companyinfo, args.flag_learning)?;
+
+    // size would be way too large, but this does not do too much
+    document.compress();
+    document.prune_objects();
+
+    document.save(dest)?;
+
     Ok(())
 }
 
+fn data_plumbing(mut buffered: impl BufRead, separator: u8) -> Result<Vec<Record>> {
+    let mut data = Vec::<Record>::with_capacity(256);
+
+    let mut rdr = csv::ReaderBuilder::new()
+        .trim(csv::Trim::All)
+        .delimiter(separator)
+        .has_headers(false)
+        .from_reader(&mut buffered);
+
+    const FIELDS: &[&'static str] = &["date", "description", "netto", "tax", "brutto", "path"];
+
+    let mut records = rdr.records();
+
+    // manually parse the first row, and determine if it is a header
+    // or just starts with plain dataset
+    let header = if let Some(rec) = records.next() {
+        let rec = rec.map_err(|e| anyhow!("Failed to parse csv line").context(e))?;
+        let mut fields = FIELDS
+            .into_iter()
+            .map(|x| -> String { (*x).to_owned() })
+            .enumerate()
+            .map(|(idx, field)| (field, idx))
+            .collect::<indexmap::IndexMap<String, usize>>();
+
+        // crafting this mapping is a bit over the top
+        // technically it's a confusion mapping.
+        // But the `Option<StringRecord>` header passed to the deserialize
+        // has the same purpose.
+        let mapping = rec
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, field)| {
+                let s = field.to_lowercase();
+                fields.remove(&s).map(|maps2| (idx, maps2))
+            })
+            .collect::<indexmap::IndexMap<usize, usize>>();
+
+        if FIELDS.len() == mapping.len() {
+            assert!(fields.is_empty());
+            log::info!("Found header");
+            Some(rec)
+        } else {
+            log::info!("No header, assume default order and attempt to consume");
+            // we don't need a mapping here, it's the default sequence
+            let rec = rec
+                .deserialize::<Record>(None)
+                .map_err(|_e| anyhow!("Failed to parse record <{:?}>", rec))?;
+            data.push(rec);
+            None
+        }
+    } else {
+        return Err(anyhow!("Provided CSV file is empty"));
+    };
+
+    for rec in records {
+        let rec = rec.map_err(|_e| anyhow!("Failed to parse csv line"))?;
+
+        let rec = rec
+            .deserialize::<Record>(header.as_ref())
+            .map_err(|_e| anyhow!("Failed to parse record <{:?}>", rec))?;
+        data.push(rec);
+    }
+
+    Ok(data)
+}
+
 fn main() {
-    run().unwrap();
+    if let Err(err) = run() {
+        eprintln!("ERROR: {}", err);
+        err.chain()
+            .skip(1)
+            .for_each(|cause| eprintln!("because: {}", cause));
+        std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    static DATA: &[(&'static str, usize /*, &[Record]*/)] = &[
+        (
+            r#"date      |company|description                    |netto |tax |brutto|path
+2020-09-20|SoloDudeSeller|Device: Superblaster 2k21      |95|0.05|100.00|spensiv.pdf
+"#,
+            1usize,
+        ),
+        (
+            r#"2020-09-20|Big$Corp|FFF   |95|0.05| 100.00|spensiv.pdf"#,
+            1usize,
+        ),
+        (
+            r#"2021-09-20|SingleDev|FFF   |95|0.05| 100.00|spensiv.pdf
+2020-09-20|CorpInc|TTT|95   |0.05| 100.00|funny.pdf
+"#,
+            2usize,
+        ),
+        (
+            r#"description|company|date                   |path |netto |tax |brutto
+Device: Superblaster 2k21|abc| 2020-09-20   |spensiv.pdf |95.00|0.05| 100.00
+"#,
+            1usize,
+        ),
+    ];
+
+    #[test]
+    fn data() {
+        for (idx, data) in DATA.iter().enumerate().skip(0) {
+            println!("Processing test sample #{}", idx);
+            let cursor = std::io::Cursor::new(&data.0);
+            let buffered = std::io::BufReader::with_capacity(4096, cursor);
+
+            let rows = dbg!(data_plumbing(buffered, b'|').unwrap());
+            assert_eq!(data.1, rows.len());
+        }
+    }
 }

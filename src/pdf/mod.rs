@@ -2,29 +2,78 @@ use crate::errors::*;
 
 use std::collections::BTreeMap;
 
-use lopdf::content::{Content, Operation};
-use lopdf::{Document, Object, ObjectId, Stream};
-use lopdf::dictionary;
+use lopdf::{Document, Object, ObjectId};
 
-use printpdf;
+use printpdf::*;
 
+mod types;
+
+pub mod constants;
+
+mod tabular;
+
+mod helper;
+pub(crate) use self::helper::*;
+
+use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::Path;
 
-pub fn load_receipt(path: Path) -> Result<Document> {
-    Document::load(path)
+use fs_err as fs;
+
+fn load_image(stream: impl BufRead + Seek, _ext: String) -> Result<Document> {
+    let reader = image::io::Reader::new(stream);
+    let reader = image::io::Reader::with_guessed_format(reader)?;
+    let image = reader.decode()?;
+
+    sized_image_page(image)
 }
 
-use super::{BankInfo, Row, Totals};
+use infer::Infer;
 
-pub fn tabular(
-    bankinfo: BankInfo, rows: &[Row], totals: Totals) -> Result<Document> {
-
-    let doc = unimplemented!("xxx");
-
-    Ok(doc.get_inner())
+fn load_pdf(path: &Path, buffered: impl BufRead) -> Result<lopdf::Document> {
+    let document = lopdf::Document::load_from(buffered)
+        .map_err(|e| anyhow!("Could not open receipt {}", path.display()).context(e))?;
+    Ok(document)
 }
 
-pub fn combine(documents: &[Document]) -> Result<Document> {
+pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
+    let path = path.as_ref();
+    let f = fs::File::open(&path)?;
+
+    let mut buffered = std::io::BufReader::new(f);
+    let mut magic = vec![0u8; 16];
+    buffered.read_exact(&mut magic)?;
+
+    // go back to the beginning
+    buffered.seek(SeekFrom::Start(0))?;
+
+    let infer = Infer::new();
+
+    if let Some(detected) = infer.get(&magic) {
+        log::info!("Inferring by magic based mime type {}", detected.mime);
+        let document = match detected.mime.as_str() {
+            mime if mime.starts_with("image/") => load_image(buffered, detected.ext)?,
+            "application/pdf" => load_pdf(path, buffered)?,
+            mime => bail!("Can not hande {} mime type of {}", mime, path.display()),
+        };
+        Ok(document)
+    } else if let Some(ext) = path.extension().map(|x| x.to_string_lossy()) {
+        log::warn!("Could not infer mime type from initial 16 bytes, fallback to file extension");
+        let document = match ext.as_ref() {
+            "png" | "jpeg" | "jpg" | "webp" | "bmp" => {
+                load_image(buffered, ext.as_ref().to_owned())?
+            }
+            "pdf" => load_pdf(path, buffered)?,
+            mime => bail!("Can not hande {} mime type of {}", mime, path.display()),
+        };
+        Ok(document)
+    } else {
+        bail!("Failed to determine file type of {}", path.display());
+    }
+}
+
+/// Combine multiple pdf files into one.
+pub(crate) fn combine(documents: &mut [Document]) -> Result<Document> {
     // Define a starting max_id (will be used as start index for object_ids)
     let mut max_id = 1;
 
@@ -32,24 +81,26 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
     let mut documents_pages = BTreeMap::new();
     let mut documents_objects = BTreeMap::new();
 
-    for mut document in documents {
+    for (idx, document) in documents.into_iter().enumerate() {
+        log::info!("Adding pdf {:02}", idx);
         document.renumber_objects_with(max_id);
 
+        log::debug!("{:02} Contains", document.max_id.saturating_sub(max_id));
         max_id = document.max_id + 1;
 
-        documents_pages.extend(
-            document
-                    .get_pages()
-                    .into_iter()
-                    .map(|(_, object_id)| {
-                        (
-                            object_id,
-                            document.get_object(object_id)?.to_owned(),
-                        )
-                    })
-                    .collect::<BTreeMap<ObjectId, Object>>(),
-        );
-        documents_objects.extend(document.objects);
+        let pages = document.get_pages();
+        let pages = pages
+            .into_iter()
+            .map(|(_, object_id)| {
+                (
+                    object_id,
+                    document.get_object(object_id).unwrap().to_owned(),
+                )
+            })
+            .collect::<BTreeMap<ObjectId, Object>>();
+
+        documents_pages.extend(pages);
+        documents_objects.extend(document.objects.clone());
     }
 
     // Initialize a new empty document
@@ -65,6 +116,7 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
         // All other objects should be collected and inserted into the main Document
         match object.type_name().unwrap_or("") {
             "Catalog" => {
+                log::info!("Adding catalog {:?}", &object);
                 // Collect a first "Catalog" object and use it for the future "Pages"
                 catalog_object = Some((
                     if let Some((id, _)) = catalog_object {
@@ -79,6 +131,7 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
                 // Collect and update a first "Pages" object and use it for the future "Catalog"
                 // We have also to merge all dictionaries of the old and the new "Pages" object
                 if let Ok(dictionary) = object.as_dict() {
+                    log::info!("Adding pages {:?}", &dictionary);
                     let mut dictionary = dictionary.clone();
                     if let Some((_, ref object)) = pages_object {
                         if let Ok(old_dictionary) = object.as_dict() {
@@ -96,10 +149,17 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
                     ));
                 }
             }
-            "Page" => {}     // Ignored, processed later and separately
-            "Outlines" => {} // Ignored, not supported yet
-            "Outline" => {}  // Ignored, not supported yet
-            _ => {
+            "Page" => {} // Ignored, processed later and separately
+            "Outlines" => {
+                // Ignored, not supported yet
+                log::warn!("Dropping outlines");
+            }
+            "Outline" => {
+                // Ignored, not supported yet
+                log::warn!("Dropping outlines");
+            }
+            x => {
+                log::info!("Adding other object {} {:?}", x, &object);
                 document.objects.insert(*object_id, object.clone());
             }
         }
@@ -115,11 +175,12 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
     for (object_id, object) in documents_pages.iter() {
         if let Ok(dictionary) = object.as_dict() {
             let mut dictionary = dictionary.clone();
-            dictionary.set("Parent", pages_object.as_ref()?.0);
+            log::info!("Adding dictionary {:?}", &dictionary);
+            dictionary.set("Parent", pages_object.0);
 
             document
-                    .objects
-                    .insert(*object_id, Object::Dictionary(dictionary));
+                .objects
+                .insert(*object_id, Object::Dictionary(dictionary));
         }
     }
 
@@ -141,14 +202,14 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
         dictionary.set(
             "Kids",
             documents_pages
-                    .into_iter()
-                    .map(|(object_id, _)| Object::Reference(object_id))
-                    .collect::<Vec<_>>(),
+                .into_iter()
+                .map(|(object_id, _)| Object::Reference(object_id))
+                .collect::<Vec<_>>(),
         );
 
         document
-                .objects
-                .insert(pages_object.0, Object::Dictionary(dictionary));
+            .objects
+            .insert(pages_object.0, Object::Dictionary(dictionary));
     }
 
     // Build a new "Catalog" with updated fields
@@ -158,8 +219,8 @@ pub fn combine(documents: &[Document]) -> Result<Document> {
         dictionary.remove(b"Outlines"); // Outlines not supported in merged PDFs
 
         document
-                .objects
-                .insert(catalog_object.0, Object::Dictionary(dictionary));
+            .objects
+            .insert(catalog_object.0, Object::Dictionary(dictionary));
     }
 
     document.trailer.set("Root", catalog_object.0);

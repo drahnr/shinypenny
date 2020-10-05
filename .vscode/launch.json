@@ -1,0 +1,54 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'shinypenny'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=shinypenny",
+                    "--package=shinypenny"
+                ],
+                "filter": {
+                    "name": "shinypenny",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "-vvvvv",
+                "--learning-budget",
+                "--csv",
+                "./demo.csv"
+            ],
+            "env": {
+                "RUST_BACKTRACE":"1"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'shinypenny'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=shinypenny",
+                    "--package=shinypenny"
+                ],
+                "filter": {
+                    "name": "shinypenny",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
