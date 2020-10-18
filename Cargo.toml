@@ -1,9 +1,9 @@
 [package]
 name = "shinypenny"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Bernhard Schuster <bernhard@ahoi.io>"]
 edition = "2018"
-license = "Apache-2.0 OR MIT"
+license = "Apache-2.0 AND MIT"
 description = "A niftly little helper program creating reimbursement requests in pdf form from a csv or commandline."
 repository = "https://github.com/drahnr/shinypenny"
 homepage = "https://github.com/drahnr/shinypenny"

@@ -17,8 +17,8 @@ flags see `shinypenny --help`.
 
 There are certain artifacts included, i.e. fonts and pivot image.
 
-* Roboto Fonts as taken from `google-roboto-fonts-2.138-6.fc32.noarch` `ASL 2.0 and CC0`
-* Test image by [Jonathan Brinkhorst](https://unsplash.com/@jbrinkhorst) under the [The Unsplash License](https://unsplash.com/license)
+* Roboto Fonts as taken from `google-roboto-fonts-2.138-6.fc32.noarch` and is pubished under [`Apache-2.0`](https://fonts.google.com/specimen/Roboto#license).
+* Test image by [Jonathan Brinkhorst](https://unsplash.com/@jbrinkhorst) under the [The Unsplash License](https://unsplash.com/license).
 * Source code is under `Apache-2.0 OR MIT`.
 
 ## Configuration
