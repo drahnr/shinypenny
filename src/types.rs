@@ -55,7 +55,6 @@ impl<'de> serde::de::Visitor<'de> for EuroVisitor {
     where
         E: serde::de::Error,
     {
-        log::trace!("Euro deser 02");
         Self::Value::from_str(s).map_err(|e| serde::de::Error::custom(format!(": {}", e)))
     }
 }
@@ -65,7 +64,6 @@ impl<'de> serde::de::Deserialize<'de> for Euro {
     where
         D: serde::de::Deserializer<'de>,
     {
-        log::trace!("Euro deser 01");
         deserializer.deserialize_str(EuroVisitor)
     }
 }
@@ -130,7 +128,6 @@ impl<'de> serde::de::Visitor<'de> for PercentageVisitor {
     where
         E: serde::de::Error,
     {
-        log::trace!("Percentage deser #2");
         Self::Value::from_str(s).map_err(|e| serde::de::Error::custom(format!(": {}", e)))
     }
 }
@@ -140,7 +137,6 @@ impl<'de> serde::de::Deserialize<'de> for Percentage {
     where
         D: serde::de::Deserializer<'de>,
     {
-        log::trace!("Percentage deser 01");
         deserializer.deserialize_str(PercentageVisitor)
     }
 }
