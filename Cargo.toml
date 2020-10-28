@@ -41,3 +41,8 @@ toml = "0.5"
 fs-err = "2"
 itertools = "0.9"
 infer = "0.2"
+
+
+# make sure backtracking is always fast
+[profile.dev.package.backtrace]
+opt-level = 3
