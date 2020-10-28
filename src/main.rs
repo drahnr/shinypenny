@@ -21,7 +21,7 @@ const USAGE: &'static str = r#"
 shinypenny
 
 Usage:
-  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --learning-budget --brutto=<brutto> --tax-percent=<taxpercent> --netto=<netto> <receipt> [<dest>]
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --brutto=<brutto> --tax-percent=<taxpercent> --netto=<netto> <receipt> [<dest>]
   shinypenny [(-q|-v...)] [-c <config>] [--learning] --csv=<csv> [<dest>]
   shinypenny config
   shinypenny --version
