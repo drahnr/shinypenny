@@ -311,8 +311,17 @@ pub(crate) struct TotalCellIter<'a> {
 
 impl<'a> TotalCellIter<'a> {
     pub(crate) fn new(total: &'a Totals) -> Self {
-        let sorted: Vec<Euro> = total.tax_total.iter().sorted_by(|(p1,_), (p2,_)| p1.cmp(&p2)).map(|(percent, euro)| *euro).collect();
-        Self { total, idx: 0usize, sorted }
+        let sorted: Vec<Euro> = total
+            .tax_total
+            .iter()
+            .sorted_by(|(p1, _), (p2, _)| p1.cmp(&p2))
+            .map(|(_percent, euro)| *euro)
+            .collect();
+        Self {
+            total,
+            idx: 0usize,
+            sorted,
+        }
     }
 }
 
@@ -440,7 +449,7 @@ mod tests {
     #[test]
     fn mpy() {
         let netto = Euro(32.99f64);
-        let tax = (netto * Percentage::from_str("5%").unwrap());
+        let tax = netto * Percentage::from_str("5%").unwrap();
         assert!(dbg!(tax).approx_eq(Euro(1.65), EPSILON));
         let brutto = netto + tax;
         assert!((Euro(32.99f64) + Euro(1.65)).approx_eq(brutto, EPSILON));
@@ -448,16 +457,16 @@ mod tests {
 
     #[test]
     fn total_acc() {
-        let date= chrono::Local::today();
+        let date = chrono::Local::today();
         let r1 = Row {
             date,
             company: "Dodo GmbH".to_owned(),
             description: "Birdy".to_owned(),
             brutto: Euro::from_str("5 €").unwrap(),
             netto: Euro::from_str("4 €").unwrap(),
-            tax_total: indexmap::indexmap!{
+            tax_total: indexmap::indexmap! {
                 Percentage::from_str("5%").unwrap() => Euro::from_str("1").unwrap(),
-            }
+            },
         };
         let r2 = Row {
             date,
@@ -465,9 +474,9 @@ mod tests {
             description: "Crops".to_owned(),
             brutto: Euro::from_str("12.50 €").unwrap(),
             netto: Euro::from_str("10 €").unwrap(),
-            tax_total: indexmap::indexmap!{
+            tax_total: indexmap::indexmap! {
                 Percentage::from_str("25%").unwrap() => Euro::from_str("2.50").unwrap(),
-            }
+            },
         };
         let r3 = Row {
             date,
@@ -475,9 +484,9 @@ mod tests {
             description: "Ink".to_owned(),
             brutto: Euro::from_str("7 €").unwrap(),
             netto: Euro::from_str("7 €").unwrap(),
-            tax_total: indexmap::indexmap!{
+            tax_total: indexmap::indexmap! {
                 Percentage::from_str("0%").unwrap() => Euro::from_str("0").unwrap(),
-            }
+            },
         };
         let r4 = Row {
             date,
@@ -485,9 +494,9 @@ mod tests {
             description: "Crops (Moar)".to_owned(),
             brutto: Euro::from_str("25.00 €").unwrap(),
             netto: Euro::from_str("20 €").unwrap(),
-            tax_total: indexmap::indexmap!{
+            tax_total: indexmap::indexmap! {
                 Percentage::from_str("25%").unwrap() => Euro::from_str("5.0").unwrap(),
-            }
+            },
         };
 
         let mut total = Totals::default();
@@ -509,7 +518,5 @@ mod tests {
         assert_eq!(iter.next(), Some("7.50".to_owned()));
         assert_eq!(iter.next(), Some("49.50".to_owned()));
         assert_eq!(iter.next(), None);
-
-
     }
 }

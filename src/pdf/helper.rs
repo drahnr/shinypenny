@@ -4,10 +4,6 @@ use super::tabular::*;
 use super::types::*;
 use crate::errors::Result;
 
-use std::io::{BufRead, Cursor, Seek};
-
-use iban::IbanLike;
-
 use printpdf::image::GenericImageView;
 use printpdf::*;
 

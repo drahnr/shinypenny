@@ -91,7 +91,7 @@ fn create_pdf(
         }
         let delta: Euro = brutto - netto;
 
-        let vat = (netto * percentage);
+        let vat = netto * percentage;
         if !&delta.approx_eq(vat, EPSILON) {
             bail!(
                 "The percentage {} derived delta {} does not match the provided delta {} between brutto {} and netto {} with a max epsilon error of {}",
