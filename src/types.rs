@@ -431,3 +431,18 @@ impl fmt::Debug for Percentage {
         write!(f, "{:>.08}", self.0 as f64 * (100f64 / 1e6))
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mpy() {
+        let netto = Euro(32.99f64);
+        let tax = (netto * Percentage::from_str("5%").unwrap()).floor_whole_cents();
+        assert!(dbg!(tax).approx_eq(Euro(1.64), EPSILON));
+        let brutto = netto + tax;
+        assert!((Euro(32.99f64) + Euro(1.64)).approx_eq(brutto, EPSILON));
+    }
+}
