@@ -293,7 +293,7 @@ pub(crate) fn tabular(
 
     use itertools::Itertools;
 
-    // add column for each tax percentage
+    // add column for each tax percentage, lowest first
     for percentage in totals
         .tax_total
         .keys()
