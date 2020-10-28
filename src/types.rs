@@ -278,12 +278,14 @@ pub(crate) struct Totals {
     pub(crate) tax_total: indexmap::IndexMap<Percentage, Euro>,
 }
 
+use itertools::Itertools;
+
 impl Totals {
     pub fn add(&mut self, other: &Row) {
         self.brutto += other.brutto;
         self.netto += other.netto;
 
-        for (percent, absolute) in other.tax_total.iter() {
+        for (percent, absolute) in other.tax_total.iter().sorted_by(|x, y| x.0.cmp(&y.0)) {
             let val = self.tax_total.entry(*percent).or_default();
             *val += *absolute;
         }
@@ -428,7 +430,6 @@ impl fmt::Debug for Percentage {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,9 +437,9 @@ mod tests {
     #[test]
     fn mpy() {
         let netto = Euro(32.99f64);
-        let tax = (netto * Percentage::from_str("5%").unwrap();
-        assert!(dbg!(tax).approx_eq(Euro(1.64), EPSILON));
+        let tax = (netto * Percentage::from_str("5%").unwrap());
+        assert!(dbg!(tax).approx_eq(Euro(1.65), EPSILON));
         let brutto = netto + tax;
-        assert!((Euro(32.99f64) + Euro(1.64)).approx_eq(brutto, EPSILON));
+        assert!((Euro(32.99f64) + Euro(1.65)).approx_eq(brutto, EPSILON));
     }
 }
