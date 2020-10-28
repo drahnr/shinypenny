@@ -22,7 +22,7 @@ impl Euro {
 }
 
 impl FromStr for Euro {
-    type Err = ::anyhow::Error;
+    type Err = Error;
     fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
         const MSG: &'static str = "Is not an acceptable euro value";
         lazy_static! {
@@ -76,7 +76,7 @@ impl<'de> serde::de::Deserialize<'de> for Euro {
 pub(crate) struct Percentage(pub u64);
 
 impl FromStr for Percentage {
-    type Err = ::anyhow::Error;
+    type Err = Error;
     fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
         const MSG: &'static str = "Is not an acceptable percentage value";
         lazy_static! {
@@ -333,6 +333,7 @@ impl<'a> Iterator for TotalCellIter<'a> {
 
 use fints_institute_db::get_bank_by_bank_code;
 use fints_institute_db::Bank;
+use fs_err as fs;
 use iban::Iban;
 
 #[derive(Clone)]
@@ -345,7 +346,9 @@ pub(crate) struct CompanyInfo {
 impl CompanyInfo {
     pub(crate) fn new(name: &str, address: &str, image_path: Option<PathBuf>) -> Result<Self> {
         let image = if let Some(image_path) = image_path {
-            let image = printpdf::image::io::Reader::open(image_path)?.decode()?;
+            let file = fs::OpenOptions::new().read(true).open(&image_path)?;
+            let reader = std::io::BufReader::with_capacity(2048, file);
+            let image = printpdf::image::io::Reader::new(reader).decode()?;
             Some(image)
         } else {
             None
@@ -376,7 +379,7 @@ impl BankInfo {
         let name = name.as_ref().to_owned();
         let bank_indentifier = iban
             .bank_identifier()
-            .ok_or_else(|| anyhow!("Failed to extract bank identifier from IBAN"))?;
+            .ok_or_else(|| eyre!("Failed to extract bank identifier from IBAN"))?;
         let bank = get_bank_by_bank_code(bank_indentifier);
         Ok(Self { name, iban, bank })
     }

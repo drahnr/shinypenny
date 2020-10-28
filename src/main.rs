@@ -21,34 +21,34 @@ const USAGE: &'static str = r#"
 shinypenny
 
 Usage:
-  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --brutto=<brutto> --tax-percent=<taxpercent> --netto=<netto> <receipt> [<dest>]
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --brutto=<brutto> --tax-percent=<tax_percent> --netto=<netto> <receipt> [<dest>]
   shinypenny [(-q|-v...)] [-c <config>] [--learning] --csv=<csv> [<dest>]
   shinypenny config
   shinypenny --version
 
 Options:
-  --version                   Show version.
-  -v --verbose                Verbosity level.
-  -q --quiet                  Silence all messages, dominates `-v`.
-  -h --help                   Show this screen.
-  --learning                  Deduct from learning budget.
-  -c --config                 An alternative configuration file.
-  --desc=<desc>               What was purchased.
-  --brutto=<brutto>           Amount of € to be re-imbursed (includes tax).
-  --tax-percent=<taxpercent>  The tax percentage used.
-  --netto=<netto>             Value of the service goods without added tax.
-  --date=<date>               The dete of the .
+  --version                     Show version.
+  -v --verbose                  Verbosity level.
+  -q --quiet                    Silence all messages, dominates `-v`.
+  -h --help                     Show this screen.
+  --learning                    Deduct from learning budget.
+  -c --config                   An alternative configuration file.
+  --desc=<desc>                 What was purchased.
+  --brutto=<brutto>             Amount of € to be re-imbursed (includes tax).
+  --tax-percent=<tax_percent>   The tax percentage used.
+  --netto=<netto>               Value of the service goods without added tax.
+  --date=<date>                 The dete of the .
 "#;
 
 #[derive(Debug, Deserialize)]
 struct Args {
     arg_dest: Option<PathBuf>,
+    arg_receipt: Option<PathBuf>,
     cmd_config: bool,
     flag_date: Option<chrono::NaiveDate>,
     flag_company: Option<String>,
-    flag_receipt: Option<PathBuf>,
     flag_brutto: Option<Euro>,
-    flag_taxpercent: Option<Percentage>,
+    flag_tax_percent: Option<Percentage>,
     flag_netto: Option<Euro>,
     flag_desc: Option<String>,
     flag_version: bool,
@@ -160,6 +160,7 @@ fn run() -> Result<()> {
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
+    let args = dbg!(args);
 
     let level = if args.flag_quiet {
         log::LevelFilter::Warn
@@ -221,12 +222,12 @@ fn run() -> Result<()> {
             .write(false)
             .truncate(false)
             .open(path)
-            .map_err(|_e| anyhow!("Failed to open passed --csv <{}>", path.display()))?;
+            .map_err(|_e| eyre!("Failed to open passed --csv <{}>", path.display()))?;
         let mut buffered = std::io::BufReader::with_capacity(4096, &mut file);
 
         // attempt once with each separator
         const SEP: &[u8] = &[b'|', b';', b','];
-        let mut r = Err(anyhow!("unreachable"));
+        let mut r = Err(eyre!("unreachable"));
         for sep in SEP.into_iter().copied() {
             let buffered = std::io::BufReader::with_capacity(4096, &mut buffered);
             r = data_plumbing(buffered, sep);
@@ -238,7 +239,7 @@ fn run() -> Result<()> {
                 sep as char
             );
         }
-        let data = r.map_err(|_e| anyhow!("No separator could read the provided data stream"))?;
+        let data = r.map_err(|_e| eyre!("No separator could read the provided data stream"))?;
         data
     } else {
         // create a single record from the provided commandline flags
@@ -257,13 +258,13 @@ fn run() -> Result<()> {
                 .flag_netto
                 .expect("docopt assured netto has a value. qed"),
             tax: args
-                .flag_taxpercent
+                .flag_tax_percent
                 .expect("docopt assured tax has a value. qed"),
             brutto: args
                 .flag_brutto
                 .expect("docopt assured brutto has a value. qed"),
             path: args
-                .flag_receipt
+                .arg_receipt
                 .expect("docopt assured path has a value. qed"),
         }]
     };
@@ -303,7 +304,7 @@ fn data_plumbing(mut buffered: impl BufRead, separator: u8) -> Result<Vec<Record
     // manually parse the first row, and determine if it is a header
     // or just starts with plain dataset
     let header = if let Some(rec) = records.next() {
-        let rec = rec.map_err(|e| anyhow!("Failed to parse csv line").context(e))?;
+        let rec = rec.map_err(|e| eyre!("Failed to parse csv line: {:?}", e))?;
         let mut fields = FIELDS
             .into_iter()
             .map(|x| -> String { (*x).to_owned() })
@@ -333,34 +334,30 @@ fn data_plumbing(mut buffered: impl BufRead, separator: u8) -> Result<Vec<Record
             // we don't need a mapping here, it's the default sequence
             let rec = rec
                 .deserialize::<Record>(None)
-                .map_err(|_e| anyhow!("Failed to parse record <{:?}>", rec))?;
+                .map_err(|_e| eyre!("Failed to parse record <{:?}>", rec))?;
             data.push(rec);
             None
         }
     } else {
-        return Err(anyhow!("Provided CSV file is empty"));
+        return Err(eyre!("Provided CSV file is empty"));
     };
 
     for rec in records {
-        let rec = rec.map_err(|_e| anyhow!("Failed to parse csv line"))?;
+        let rec = rec.map_err(|_e| eyre!("Failed to parse csv line"))?;
 
         let rec = rec
             .deserialize::<Record>(header.as_ref())
-            .map_err(|_e| anyhow!("Failed to parse record <{:?}>", rec))?;
+            .map_err(|_e| eyre!("Failed to parse record <{:?}>", rec))?;
         data.push(rec);
     }
 
     Ok(data)
 }
 
-fn main() {
-    if let Err(err) = run() {
-        eprintln!("ERROR: {}", err);
-        err.chain()
-            .skip(1)
-            .for_each(|cause| eprintln!("because: {}", cause));
-        std::process::exit(1);
-    }
+fn main() -> Result<()> {
+    color_eyre::install()?;
+    run()?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -76,8 +76,7 @@ impl Config {
     }
 
     pub(crate) fn user_config_path() -> Result<PathBuf> {
-        let dir =
-            dirs::config_dir().ok_or_else(|| anyhow!("Missing config dir for current user"))?;
+        let dir = dirs::config_dir().ok_or_else(|| eyre!("Missing config dir for current user"))?;
         let path = dir.join("shinypenny.toml");
         Ok(path)
     }

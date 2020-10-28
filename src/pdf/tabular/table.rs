@@ -177,12 +177,12 @@ where
             .hbounds
             .first()
             .copied()
-            .ok_or_else(|| anyhow!("Failed to obtain first"))?;
+            .ok_or_else(|| eyre!("Failed to obtain first"))?;
         let right = state
             .hbounds
             .last()
             .copied()
-            .ok_or_else(|| anyhow!("Failed to obtain last"))?;
+            .ok_or_else(|| eyre!("Failed to obtain last"))?;
         let line = Line {
             points: vec![
                 (Point { x: left, y: top }, false),

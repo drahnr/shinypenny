@@ -32,7 +32,7 @@ use infer::Infer;
 
 fn load_pdf(path: &Path, buffered: impl BufRead) -> Result<lopdf::Document> {
     let document = lopdf::Document::load_from(buffered)
-        .map_err(|e| anyhow!("Could not open receipt {}", path.display()).context(e))?;
+        .map_err(|e| eyre!("Could not open receipt {}: {:?}", path.display(), e))?;
     Ok(document)
 }
 

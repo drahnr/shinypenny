@@ -1,3 +1,3 @@
-pub use anyhow::{anyhow, bail, Error};
+pub use ::color_eyre::eyre::{bail, eyre, Error, Report, WrapErr};
 
-pub type Result<T> = ::anyhow::Result<T, ::anyhow::Error>;
+pub type Result<T> = ::color_eyre::eyre::Result<T, ::color_eyre::eyre::Error>;
