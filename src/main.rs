@@ -160,7 +160,6 @@ fn run() -> Result<()> {
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
-    let args = dbg!(args);
 
     let level = if args.flag_quiet {
         log::LevelFilter::Warn
