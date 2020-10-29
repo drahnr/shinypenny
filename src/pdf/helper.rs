@@ -131,7 +131,7 @@ pub(crate) fn add_image(
         Alignment::Center => anchor.x - width * scale / 2.0f64,
     };
     let anchor = Point { x, y: anchor.y };
-    create_jpg_image(active_layer, dbg!(anchor), image, scale, dpi)?;
+    create_jpg_image(active_layer, anchor, image, scale, dpi)?;
 
     Ok(())
 }

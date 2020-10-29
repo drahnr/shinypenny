@@ -201,6 +201,7 @@ fn run() -> Result<()> {
     }
 
     let dest = if let Some(dest) = args.arg_dest {
+        log::debug!("Using provides destination path: {}", dest.display());
         dest
     } else {
         let today = chrono::Local::today();
@@ -210,7 +211,7 @@ fn run() -> Result<()> {
         let dest = std::env::current_dir()
             .expect("CWD must exists")
             .join(file_name);
-        log::info!("Using default file name {}", dest.display());
+        log::info!("Using default destination path {}", dest.display());
         dest
     };
 
