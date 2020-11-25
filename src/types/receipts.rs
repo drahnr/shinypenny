@@ -2,7 +2,7 @@ use super::*;
 use std::path::{Path, PathBuf};
 
 // A set of receipts
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub(crate) struct Receipts(pub indexmap::IndexSet<PathBuf>);
 
 impl<A> std::iter::FromIterator<A> for Receipts
@@ -42,25 +42,31 @@ impl<'de> serde::de::Visitor<'de> for ReceiptsVisitor {
     type Value = Receipts;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "Euros denotion, with or withou € suffix")
+        write!(formatter, "Receipts must a comma delimited list of paths relative to the current work dir or absulte")
     }
 
     fn visit_str<E>(self, s: &str) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        let s = s.trim();
-        let bare = s.split(',').try_fold::<Vec<PathBuf>, _, _>(
-            Default::default(),
-            |mut acc, path_s| {
-                let path = PathBuf::from(path_s);
-                let path = fs::canonicalize::<PathBuf>(path)
-                    .map_err(|e| serde::de::Error::custom(format!(": {}", e)))?;
-                acc.push(path);
-                Ok(acc)
-            },
-        )?;
-        Ok(Self::Value::from(bare))
+        if s.is_empty() {
+            Ok(Self::Value::default())
+        } else {
+            let bare = s
+                .split(',')
+                .try_fold(Vec::<PathBuf>::default(), |mut acc, path_s| {
+                    let path_s = path_s.trim();
+                    if !path_s.is_empty() {
+                        let path = PathBuf::from(path_s);
+                        let path = fs::canonicalize::<PathBuf>(path).map_err(|e| {
+                            serde::de::Error::custom(format!("ReceiptsVisitor: {}", e))
+                        })?;
+                        acc.push(path);
+                    }
+                    Ok(acc)
+                })?;
+            Ok(Self::Value::from(bare))
+        }
     }
 }
 

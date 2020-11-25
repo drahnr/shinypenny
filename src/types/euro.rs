@@ -3,9 +3,7 @@ use crate::errors::*;
 use float_cmp::ApproxEq;
 use lazy_static::lazy_static;
 use regex::Regex;
-
 use serde::Serialize;
-
 use std::str::FromStr;
 
 pub type Date = chrono::Date<chrono::Local>;

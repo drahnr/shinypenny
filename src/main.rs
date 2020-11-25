@@ -400,6 +400,7 @@ Device: Superblaster 2k21|abc| 2020-09-20   |assets/spensiv.pdf |95.00|0.05| 100
     fn data() {
         for (idx, data) in DATA.iter().enumerate().skip(0) {
             println!("Processing test sample #{}", idx);
+            println!("{}", data.0);
             let cursor = std::io::Cursor::new(&data.0);
             let buffered = std::io::BufReader::with_capacity(4096, cursor);
 

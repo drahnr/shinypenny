@@ -42,7 +42,12 @@ pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
 
     let mut buffered = std::io::BufReader::new(f);
     let mut magic = vec![0u8; 16];
-    buffered.read_exact(&mut magic)?;
+    buffered.read_exact(&mut magic).map_err(|e| {
+        eyre!(
+            "File {} is too short to determine file type",
+            path.display()
+        )
+    })?;
 
     // go back to the beginning
     buffered.seek(SeekFrom::Start(0))?;
