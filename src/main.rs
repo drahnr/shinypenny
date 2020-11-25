@@ -21,8 +21,8 @@ const USAGE: &'static str = r#"
 shinypenny
 
 Usage:
-  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --brutto=<brutto> --tax-percent=<tax_percent> --netto=<netto> <receipt> [<dest>]
-  shinypenny [(-q|-v...)] [-c <config>] [--learning] --csv=<csv> [<dest>]
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] [--date=<date>] --company=<company> --desc=<desc> --brutto=<brutto> --tax-percent=<tax_percent> --netto=<netto> [--dest=<dest>] <receipts>..
+  shinypenny [(-q|-v...)] [-c <config>] [--learning] --csv=<csv> [--dest=<dest>]
   shinypenny config
   shinypenny --version
 
@@ -37,13 +37,14 @@ Options:
   --brutto=<brutto>             Amount of € to be re-imbursed (includes tax).
   --tax-percent=<tax_percent>   The tax percentage used.
   --netto=<netto>               Value of the service goods without added tax.
-  --date=<date>                 The dete of the .
+  --date=<date>                 The date of receipt creation, defaults to today.
+  --dest=<dest>                 Write the receipt to the given dest file
 "#;
 
 #[derive(Debug, Deserialize)]
 struct Args {
     arg_dest: Option<PathBuf>,
-    arg_receipt: Option<PathBuf>,
+    arg_receipts: Receipts,
     cmd_config: bool,
     flag_date: Option<chrono::NaiveDate>,
     flag_company: Option<String>,
@@ -81,7 +82,7 @@ fn create_pdf(
     let mut receipts = Vec::with_capacity(32);
 
     for record in records.into_iter() {
-        receipts.push((record.description.as_str(), &record.path));
+        receipts.push((record.description.as_str(), &record.receipts));
 
         let brutto = record.brutto;
         let netto = record.netto;
@@ -137,10 +138,12 @@ fn create_pdf(
 
     log::info!("Number integrity checks and folding complete");
 
-    for (desc, path) in receipts {
+    for (desc, receipt_paths) in receipts {
         documents.push(pdf::separation_page(desc)?);
-        let document = pdf::load_receipt(path)?;
-        documents.push(document);
+        for path in receipt_paths {
+            let document = pdf::load_receipt(path)?;
+            documents.push(document);
+        }
     }
 
     log::info!("Receipt document loading complete");
@@ -263,9 +266,7 @@ fn run() -> Result<()> {
             brutto: args
                 .flag_brutto
                 .expect("docopt assured brutto has a value. qed"),
-            path: args
-                .arg_receipt
-                .expect("docopt assured path has a value. qed"),
+            receipts: args.arg_receipts,
         }]
     };
 
@@ -367,23 +368,29 @@ mod tests {
     static DATA: &[(&'static str, usize /*, &[Record]*/)] = &[
         (
             r#"date      |company|description                    |netto |tax |brutto|path
-2020-09-20|SoloDudeSeller|Device: Superblaster 2k21      |95|0.05|100.00|spensiv.pdf
+2020-09-20|SoloDudeSeller|Device: Superblaster 2k21      |95|0.05|100.00|assets/spensiv.pdf
 "#,
             1usize,
         ),
         (
-            r#"2020-09-20|Big$Corp|FFF   |95|0.05| 100.00|spensiv.pdf"#,
+            r#"2020-09-20|Big$Corp|FFF   |95|0.05| 100.00|assets/spensiv.pdf"#,
             1usize,
         ),
         (
-            r#"2021-09-20|SingleDev|FFF   |95|0.05| 100.00|spensiv.pdf
-2020-09-20|CorpInc|TTT|95   |0.05| 100.00|funny.pdf
+            r#"2021-09-20|SingleDev|FFF   |95|0.05| 100.00|assets/spensiv.pdf
+2020-09-20|CorpInc|TTT|95   |0.05| 100.00|assets/funny.pdf
+"#,
+            2usize,
+        ),
+        (
+            r#"2021-09-20|SingleDev|FFF   |95|0.05| 100.00|assets/spensiv.pdf,assets/funny.pdf
+2020-09-20|CorpInc|TTT|95   |0.05| 100.00|assets/funny.pdf
 "#,
             2usize,
         ),
         (
             r#"description|company|date                   |path |netto |tax |brutto
-Device: Superblaster 2k21|abc| 2020-09-20   |spensiv.pdf |95.00|0.05| 100.00
+Device: Superblaster 2k21|abc| 2020-09-20   |assets/spensiv.pdf |95.00|0.05| 100.00
 "#,
             1usize,
         ),
@@ -396,7 +403,7 @@ Device: Superblaster 2k21|abc| 2020-09-20   |spensiv.pdf |95.00|0.05| 100.00
             let cursor = std::io::Cursor::new(&data.0);
             let buffered = std::io::BufReader::with_capacity(4096, cursor);
 
-            let rows = dbg!(data_plumbing(buffered, b'|').unwrap());
+            let rows = dbg!(data_plumbing(buffered, b'|').expect("Data plumbing works. qed"));
             assert_eq!(data.1, rows.len());
         }
     }
