@@ -42,7 +42,7 @@ pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
 
     let mut buffered = std::io::BufReader::new(f);
     let mut magic = vec![0u8; 16];
-    buffered.read_exact(&mut magic).map_err(|e| {
+    buffered.read_exact(&mut magic).map_err(|_e| {
         eyre!(
             "File {} is too short to determine file type",
             path.display()
@@ -55,9 +55,14 @@ pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
     let infer = Infer::new();
 
     if let Some(detected) = infer.get(&magic) {
-        log::info!("Inferring by magic based mime type {}", detected.mime);
-        let document = match detected.mime.as_str() {
-            mime if mime.starts_with("image/") => load_image(buffered, detected.ext)?,
+        log::info!(
+            "Inferring by magic based mime type {}",
+            detected.mime_type()
+        );
+        let document = match detected.mime_type() {
+            mime if mime.starts_with("image/") => {
+                load_image(buffered, detected.extension().to_owned())?
+            }
             "application/pdf" => load_pdf(path, buffered)?,
             mime => bail!("Can not hande {} mime type of {}", mime, path.display()),
         };

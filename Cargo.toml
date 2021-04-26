@@ -23,9 +23,9 @@ indexmap = "1"
 color-eyre = "0.5"
 dirs = "3"
 regex = "1"
-lopdf = "0.26"
 float-cmp = "0.8"
-printpdf = { version = "0.3.3", features = [
+lopdf = "0.26.0"
+printpdf = { version = "=0.3.4", features = [
     "jpeg_rayon",
     "webp",
     "embedded_images"
@@ -39,8 +39,8 @@ harfbuzz_rs = { version = "1", features = [
 ] }
 toml = "0.5"
 fs-err = "2"
-itertools = "0.9"
-infer = "0.2"
+itertools = "0.10"
+infer = "0.4.0"
 
 
 # make sure backtracking is always fast

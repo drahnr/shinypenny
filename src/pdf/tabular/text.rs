@@ -55,7 +55,7 @@ pub(crate) fn text(
 
     layer.use_text(
         text,
-        size as i64,
+        size as i64 as f64,
         Mm::from(anchor.x),
         Mm::from(anchor.y),
         &font,
