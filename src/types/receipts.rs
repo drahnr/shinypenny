@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 // A set of receipts
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub(crate) struct Receipts(pub indexmap::IndexSet<PathBuf>);
+pub(crate) struct Receipts(indexmap::IndexSet<PathBuf>);
 
 impl<A> std::iter::FromIterator<A> for Receipts
 where
@@ -36,6 +36,12 @@ where
     }
 }
 
+impl Receipts {
+    pub fn insert(&mut self, x: impl Into<PathBuf>) {
+        self.0.insert(x.into());
+    }
+}
+
 struct ReceiptsVisitor;
 
 impl<'de> serde::de::Visitor<'de> for ReceiptsVisitor {
@@ -55,13 +61,13 @@ impl<'de> serde::de::Visitor<'de> for ReceiptsVisitor {
             let bare = s
                 .split(',')
                 .try_fold(Vec::<PathBuf>::default(), |mut acc, path_s| {
-                    let path_s = path_s.trim();
-                    if !path_s.is_empty() {
-                        let path = PathBuf::from(path_s);
-                        let path = fs::canonicalize::<PathBuf>(path).map_err(|e| {
-                            serde::de::Error::custom(format!("ReceiptsVisitor: {}", e))
-                        })?;
-                        acc.push(path);
+                    let path = path_s.trim();
+                    if path.is_empty() {
+                        return Err(serde::de::Error::custom(format!(
+                            "Must contain at least one (1) receipt"
+                        )));
+                    } else {
+                        acc.push(PathBuf::from(path));
                     }
                     Ok(acc)
                 })?;

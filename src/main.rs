@@ -220,16 +220,24 @@ fn run() -> Result<()> {
 
     // collect csv `Record`s
     let data = if let Some(path) = args.flag_csv.as_ref() {
+        let path = if path.is_absolute() {
+            path.to_owned()
+        } else {
+            let cwd = std::env::current_dir()
+            .wrap_err_with(|| eyre!("Missing current working directory in program environment. Required to resolve relative paths."))?;
+            let canon = cwd.join(&path);
+            canon.canonicalize()?
+        };
         let mut file = fs::OpenOptions::new()
             .read(true)
             .write(false)
             .truncate(false)
-            .open(path)
-            .map_err(|_e| eyre!("Failed to open passed --csv <{}>", path.display()))?;
+            .open(&path)
+            .wrap_err_with(|| eyre!("Failed to open passed --csv <{}>", path.display()))?;
         let mut buffered = std::io::BufReader::with_capacity(4096, &mut file);
 
         // attempt once with each separator
-        const SEP: &[u8] = &[b'|', b';', b','];
+        const SEP: &[u8] = &[b'|', b';'];
         let mut r = Err(eyre!("unreachable"));
         for sep in SEP.into_iter().copied() {
             let buffered = std::io::BufReader::with_capacity(4096, &mut buffered);
@@ -242,7 +250,40 @@ fn run() -> Result<()> {
                 sep as char
             );
         }
-        let data = r.map_err(|_e| eyre!("No separator could read the provided data stream"))?;
+        let mut data =
+            r.wrap_err_with(|| eyre!("No separator could read the provided data stream"))?;
+
+        let base = path
+            .parent()
+            .ok_or_else(|| eyre!("Failed to get parent dir of csv file {}", path.display()))?;
+        log::debug!(
+            "Interpreting relative paths as relative to base: {}",
+            base.display()
+        );
+        for rec in data.iter_mut() {
+            rec.receipts = rec
+                .receipts
+                .into_iter()
+                .try_fold::<_, _, Result<Receipts>>(Receipts::default(), |mut acc, path| {
+                    let resolved = if path.is_absolute() {
+                        path.to_owned()
+                    } else {
+                        base.join(path)
+                    };
+                    let canon = resolved.canonicalize().wrap_err_with(|| {
+                        eyre!("Failed to sanitize path {}", resolved.display())
+                    })?;
+                    log::debug!(
+                        "Sanitized receipt path: base {} ~~~> {} ~~~> {}",
+                        path.display(),
+                        resolved.display(),
+                        canon.display()
+                    );
+                    acc.insert(canon);
+                    Ok(acc)
+                })?;
+        }
+
         data
     } else {
         // create a single record from the provided commandline flags
@@ -305,7 +346,7 @@ fn data_plumbing(mut buffered: impl BufRead, separator: u8) -> Result<Vec<Record
     // manually parse the first row, and determine if it is a header
     // or just starts with plain dataset
     let header = if let Some(rec) = records.next() {
-        let rec = rec.map_err(|e| eyre!("Failed to parse csv line: {:?}", e))?;
+        let rec = rec.wrap_err_with(|| eyre!("Failed to parse csv line"))?;
         let mut fields = FIELDS
             .into_iter()
             .map(|x| -> String { (*x).to_owned() })
@@ -344,11 +385,12 @@ fn data_plumbing(mut buffered: impl BufRead, separator: u8) -> Result<Vec<Record
     };
 
     for rec in records {
-        let rec = rec.map_err(|_e| eyre!("Failed to parse csv line"))?;
+        let rec = rec.wrap_err_with(|| eyre!("Failed to parse csv line"))?;
 
         let rec = rec
             .deserialize::<Record>(header.as_ref())
-            .map_err(|_e| eyre!("Failed to parse record <{:?}>", rec))?;
+            .wrap_err_with(|| eyre!("Failed to parse record <{:?}>", rec))?;
+
         data.push(rec);
     }
 
