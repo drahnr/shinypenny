@@ -47,7 +47,7 @@ The format is determined by by the header row, which can be omitted if the order
 as kept in the example below. If the columns are re-ordered, the header tags must be provided
 with the names as shown below.
 
-By default `|` is used as separator, a secondary attempt is made with `;`, and tertiary with `,`.
+By default `|` is used as separator, a secondary attempt is made with `;`.
 
 Numbers and decimals may be delimited with `.` characters independent of the locale - `,` is not a valid decimal separator, see [the rust `f64` grammar](https://doc.rust-lang.org/std/primitive.f64.html#grammar).
 
