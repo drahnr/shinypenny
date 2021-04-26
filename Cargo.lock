@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "shinypenny"
-version = "0.3.3"
+version = "0.3.4-alpha.0"
 dependencies = [
  "chrono",
  "color-eyre",
