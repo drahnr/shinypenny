@@ -2,33 +2,33 @@ use super::*;
 
 /// A record in the input csv data.
 #[derive(Debug, Deserialize)]
-pub(crate) struct Record {
-    pub(crate) date: chrono::NaiveDate,
-    pub(crate) description: String,
-    pub(crate) company: String,
-    pub(crate) netto: Euro,
-    pub(crate) tax: Percentage,
-    pub(crate) brutto: Euro,
+pub struct Record {
+    pub date: chrono::NaiveDate,
+    pub description: String,
+    pub company: String,
+    pub netto: Expense,
+    pub tax: Percentage,
+    pub brutto: Expense,
     #[serde(alias = "receipt")]
     #[serde(alias = "path")]
     #[serde(alias = "paths")]
-    pub(crate) receipts: Receipts,
+    pub receipts: Receipts,
 }
 
 /// A table row to be displayed in the pdf table.
 #[derive(Debug, Clone)]
-pub(crate) struct Row {
-    pub(crate) date: Date,
-    pub(crate) company: String,
-    pub(crate) description: String,
-    pub(crate) brutto: Euro,
-    pub(crate) netto: Euro,
-    pub(crate) tax_total: indexmap::IndexMap<Percentage, Euro>,
+pub struct Row {
+    pub date: Date,
+    pub company: String,
+    pub description: String,
+    pub brutto: Euro,
+    pub netto: Euro,
+    pub tax_total: indexmap::IndexMap<Percentage, Euro>,
 }
 
 impl Row {
     #[allow(unused)]
-    pub(crate) fn iter(&self) -> RowCellIter {
+    pub fn iter(&self) -> RowCellIter {
         RowCellIter::new(&self)
     }
 }
@@ -43,13 +43,13 @@ impl<'a> IntoIterator for &'a Row {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct RowCellIter<'a> {
+pub struct RowCellIter<'a> {
     idx: usize,
     row: &'a Row,
 }
 
 impl<'a> RowCellIter<'a> {
-    pub(crate) fn new(row: &'a Row) -> Self {
+    pub fn new(row: &'a Row) -> Self {
         Self { row, idx: 0usize }
     }
 }
@@ -79,10 +79,10 @@ impl<'a> Iterator for RowCellIter<'a> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Totals {
-    pub(crate) brutto: Euro,
-    pub(crate) netto: Euro,
-    pub(crate) tax_total: indexmap::IndexMap<Percentage, Euro>,
+pub struct Totals {
+    pub brutto: Euro,
+    pub netto: Euro,
+    pub tax_total: indexmap::IndexMap<Percentage, Euro>,
 }
 
 use itertools::Itertools;
@@ -109,7 +109,7 @@ impl<'a> IntoIterator for &'a Totals {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct TotalCellIter<'a> {
+pub struct TotalCellIter<'a> {
     idx: usize,
     total: &'a Totals,
 
@@ -117,7 +117,7 @@ pub(crate) struct TotalCellIter<'a> {
 }
 
 impl<'a> TotalCellIter<'a> {
-    pub(crate) fn new(total: &'a Totals) -> Self {
+    pub fn new(total: &'a Totals) -> Self {
         let sorted: Vec<Euro> = total
             .tax_total
             .iter()

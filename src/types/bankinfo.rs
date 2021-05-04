@@ -6,17 +6,17 @@ use fints_institute_db::Bank;
 use iban::Iban;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct BankInfo {
+pub struct BankInfo {
     /// Full name of the bank account owner.
-    pub(crate) name: String,
+    pub name: String,
     /// IBAN contains all info about the bank, so that's all needed
-    pub(crate) iban: Iban,
+    pub iban: Iban,
     /// Your bank institute information.
     bank: Option<Bank>,
 }
 
 impl BankInfo {
-    pub(crate) fn new(name: impl AsRef<str>, iban: Iban) -> Result<Self> {
+    pub fn new(name: impl AsRef<str>, iban: Iban) -> Result<Self> {
         // let iban = Iban::from_str(iban.as_ref())?;
         let name = name.as_ref().to_owned();
         let bank_indentifier = iban

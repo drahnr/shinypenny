@@ -63,7 +63,7 @@ fn create_jpg_image(
 }
 
 /// Introduce a sized image page.
-pub(crate) fn sized_image_page(image: image::DynamicImage) -> Result<lopdf::Document> {
+pub fn sized_image_page(image: image::DynamicImage) -> Result<lopdf::Document> {
     let (width, height) = image.dimensions();
     let dpi = 200. as f64;
 
@@ -112,7 +112,7 @@ pub(crate) fn sized_image_page(image: image::DynamicImage) -> Result<lopdf::Docu
 }
 
 /// Add an image with an anchor point to a given layer.
-pub(crate) fn add_image(
+pub fn add_image(
     active_layer: PdfLayerReference,
     anchor: Point,
     image: printpdf::image::DynamicImage,
@@ -136,7 +136,7 @@ pub(crate) fn add_image(
     Ok(())
 }
 
-pub(crate) fn separation_page(desc: &str) -> Result<lopdf::Document> {
+pub fn separation_page(desc: &str) -> Result<lopdf::Document> {
     let dim = (Mm(20 as f64), DIN_A4.width);
     let (doc, page1, layer1) = PdfDocument::new("Separation", dim.1, dim.0, "Layer 1");
     let active_layer = doc.get_page(page1).get_layer(layer1);
@@ -201,7 +201,7 @@ pub(crate) fn separation_page(desc: &str) -> Result<lopdf::Document> {
     flush_pdf_ops(doc)
 }
 
-pub(crate) fn tabular(
+pub fn tabular(
     bankinfo: BankInfo,
     company: CompanyInfo,
     rows: &[Row],

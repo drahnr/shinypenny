@@ -6,7 +6,7 @@ use printpdf::*;
 use harfbuzz_rs as harf;
 
 ///
-pub(crate) fn text_width(text: &str, font_as_bytes: &[u8], size: i32) -> Result<Pt> {
+pub fn text_width(text: &str, font_as_bytes: &[u8], size: i32) -> Result<Pt> {
     let index = 0; //< face index in the font file
     let face = harf::Face::from_bytes(font_as_bytes, index);
     let mut font = harf::Font::new(face);
@@ -37,7 +37,7 @@ pub(crate) fn text_width(text: &str, font_as_bytes: &[u8], size: i32) -> Result<
     Ok(length + Pt(size as f64) * 0.25f64) // some extra padding, right now this is only used for aligning text to the right
 }
 
-pub(crate) fn text(
+pub fn text(
     layer: &PdfLayerReference,
     mut anchor: Point,
     text: &str,

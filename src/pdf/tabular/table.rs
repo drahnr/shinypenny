@@ -4,15 +4,15 @@
 
 use super::super::constants::TTF_REGULAR;
 use super::text::text_width;
+use super::ColumnWidthSet;
 use super::{Alignment, RenderState, RenderStyle, RenderStyleSet};
-use super::{ColumnWidth, ColumnWidthSet, ColumnWidthSetIter};
 use crate::errors::*;
 
 use printpdf::*;
 
 use std::marker::PhantomData;
 
-pub(crate) struct SummableTabular<'a, 'b, T0, I0, II0, I1, II1, ST, SI, SV> {
+pub struct SummableTabular<'a, 'b, T0, I0, II0, I1, II1, ST, SI, SV> {
     anchor: Point,
     header: Vec<&'a str>,
     content: T0,
@@ -39,7 +39,7 @@ where
     SI: Iterator<Item = SV>,
     SV: ToString,
 {
-    pub(crate) fn new(
+    pub fn new(
         active_layer: &'b PdfLayerReference,
         anchor: Point,
         header: Vec<&'a str>,
@@ -61,11 +61,7 @@ where
         }
     }
 
-    pub(crate) fn render(
-        mut self,
-        styleset: &RenderStyleSet,
-        columnwidths: ColumnWidthSet,
-    ) -> Result<()> {
+    pub fn render(mut self, styleset: &RenderStyleSet, columnwidths: ColumnWidthSet) -> Result<()> {
         let mut hbounds = Vec::with_capacity(columnwidths.len() + 1);
         hbounds.insert(0, self.anchor.x);
         assert_eq!(hbounds.len(), 1);

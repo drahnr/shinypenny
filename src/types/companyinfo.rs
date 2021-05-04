@@ -1,14 +1,14 @@
 use super::*;
 
 #[derive(Clone)]
-pub(crate) struct CompanyInfo {
-    pub(crate) image: Option<printpdf::image::DynamicImage>,
-    pub(crate) name: String,
-    pub(crate) address: String,
+pub struct CompanyInfo {
+    pub image: Option<printpdf::image::DynamicImage>,
+    pub name: String,
+    pub address: String,
 }
 
 impl CompanyInfo {
-    pub(crate) fn new(name: &str, address: &str, image_path: Option<PathBuf>) -> Result<Self> {
+    pub fn new(name: &str, address: &str, image_path: Option<PathBuf>) -> Result<Self> {
         let image = if let Some(image_path) = image_path {
             log::trace!("Loading company image from {}", image_path.display());
             let file = fs::OpenOptions::new().read(true).open(&image_path)?;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 // A set of receipts
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub(crate) struct Receipts(indexmap::IndexSet<PathBuf>);
+pub struct Receipts(indexmap::IndexSet<PathBuf>);
 
 impl<A> std::iter::FromIterator<A> for Receipts
 where

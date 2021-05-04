@@ -13,7 +13,7 @@ pub mod constants;
 mod tabular;
 
 mod helper;
-pub(crate) use self::helper::*;
+pub use self::helper::*;
 
 use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::Path;
@@ -36,7 +36,7 @@ fn load_pdf(path: &Path, buffered: impl BufRead) -> Result<lopdf::Document> {
     Ok(document)
 }
 
-pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
+pub fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
     let path = path.as_ref();
     let f = fs::File::open(&path)?;
 
@@ -83,7 +83,7 @@ pub(crate) fn load_receipt(path: impl AsRef<Path>) -> Result<lopdf::Document> {
 }
 
 /// Combine multiple pdf files into one.
-pub(crate) fn combine(documents: &mut [Document]) -> Result<Document> {
+pub fn combine(documents: &mut [Document]) -> Result<Document> {
     // Define a starting max_id (will be used as start index for object_ids)
     let mut max_id = 1;
 

@@ -1,8 +1,8 @@
 use super::types::*;
 
 pub struct Dimensions {
-    pub(crate) height: Mm,
-    pub(crate) width: Mm,
+    pub height: Mm,
+    pub width: Mm,
 }
 
 /// DIN A4 in mm dimensions.

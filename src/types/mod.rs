@@ -1,28 +1,36 @@
 use crate::errors::*;
 
-use float_cmp::ApproxEq;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 pub type Date = chrono::Date<chrono::Local>;
 
+pub use iso_currency::Currency;
+
 use fs_err as fs;
 
+use float_cmp::ApproxEq;
 use std::fmt;
+use std::str::FromStr;
 
 mod bankinfo;
 mod companyinfo;
 mod euro;
+mod exchange;
+mod expense;
+mod percentage;
 mod receipts;
 mod record;
 
-pub(crate) use self::bankinfo::*;
-pub(crate) use self::companyinfo::*;
-pub(crate) use self::euro::*;
-pub(crate) use self::receipts::*;
-pub(crate) use self::record::*;
+pub use self::bankinfo::*;
+pub use self::companyinfo::*;
+pub use self::euro::*;
+pub use self::exchange::*;
+pub use self::expense::*;
+pub use self::percentage::*;
+pub use self::receipts::*;
+pub use self::record::*;
 
 #[cfg(test)]
 mod tests {

@@ -2,7 +2,7 @@ use super::super::types::{Color, IndirectFontRef};
 
 /// All purpose alignment type.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum Alignment {
+pub enum Alignment {
     Center,
     Left,
     Right,
@@ -10,18 +10,18 @@ pub(crate) enum Alignment {
 
 /// Track render style.
 #[derive(Debug, Clone)]
-pub(crate) struct RenderStyle {
-    pub(crate) font: IndirectFontRef,
-    pub(crate) size: i32,
-    pub(crate) foreground: Color,
-    pub(crate) background: Color,
-    pub(crate) alignment: Alignment,
+pub struct RenderStyle {
+    pub font: IndirectFontRef,
+    pub size: i32,
+    pub foreground: Color,
+    pub background: Color,
+    pub alignment: Alignment,
 }
 
 /// Render style set for full tabular data.
 #[derive(Debug, Clone)]
-pub(crate) struct RenderStyleSet {
-    pub(crate) header: RenderStyle,
-    pub(crate) data: RenderStyle,
-    pub(crate) sum: RenderStyle,
+pub struct RenderStyleSet {
+    pub header: RenderStyle,
+    pub data: RenderStyle,
+    pub sum: RenderStyle,
 }

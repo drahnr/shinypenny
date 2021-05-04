@@ -7,21 +7,21 @@ use iban::Iban;
 use fs_err as fs;
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub(crate) struct CompanyConfig {
-    pub(crate) image: Option<PathBuf>,
-    pub(crate) name: String,
-    pub(crate) address: String,
+pub struct CompanyConfig {
+    pub image: Option<PathBuf>,
+    pub name: String,
+    pub address: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct Config {
-    pub(crate) name: String,
+pub struct Config {
+    pub name: String,
 
     #[serde(deserialize_with = "deserialize_iban")]
-    pub(crate) iban: Iban,
+    pub iban: Iban,
 
     #[serde(default)]
-    pub(crate) company: CompanyConfig,
+    pub company: CompanyConfig,
 }
 
 use serde::de;
@@ -59,23 +59,23 @@ use std::convert::AsRef;
 use std::path::{Path, PathBuf};
 
 impl Config {
-    pub(crate) fn from_file(path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let s = fs::read_to_string(path)?;
         Self::load(&s)
     }
 
-    pub(crate) fn load(s: &str) -> Result<Self> {
+    pub fn load(s: &str) -> Result<Self> {
         let cfg: Config = toml::from_str(s)?;
         Ok(cfg)
     }
 
-    pub(crate) fn load_user_config() -> Result<Self> {
+    pub fn load_user_config() -> Result<Self> {
         let path = Self::user_config_path()?;
         Self::from_file(&path)
     }
 
-    pub(crate) fn user_config_path() -> Result<PathBuf> {
+    pub fn user_config_path() -> Result<PathBuf> {
         let dir = dirs::config_dir().ok_or_else(|| eyre!("Missing config dir for current user"))?;
         let path = dir.join("shinypenny.toml");
         Ok(path)
