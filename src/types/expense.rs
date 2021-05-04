@@ -25,13 +25,25 @@ impl Expense {
         self.1
     }
     pub fn exchange_rate(&self) -> Option<ExchangeRate> {
-        self.2.clone()
+        self.2
+    }
+
+    pub fn set_exchange_rate(&mut self, rate: ExchangeRate) {
+        self.2 = Some(rate);
+    }
+
+    pub fn as_euro(&self) -> Euro {
+        if self.currency() == Currency::EUR {
+            return Euro(self.amount())
+        }
+        self.exchange_rate().map(|rate| {
+            Euro(rate * self.amount())
+        }).expect("Assumes an exchange rate was set.")
     }
 }
 
 fn silly_decimals(fragment: &str) -> Result<f64> {
-    fragment
-        .as_str()
+    let val = fragment
         .chars()
         .scan(true, |first: &mut bool, c: char| {
             if c == ',' && *first {
@@ -42,7 +54,7 @@ fn silly_decimals(fragment: &str) -> Result<f64> {
             }
         })
         .collect::<String>();
-    Ok(f64::from_str(amount.as_str())?)
+    Ok(f64::from_str(val.as_str())?)
 }
 
 impl FromStr for Expense {
@@ -51,18 +63,19 @@ impl FromStr for Expense {
         const MSG: &'static str = "Is not an acceptable euro value";
         lazy_static! {
             static ref RE: Regex =
-                Regex::new(r#"^\s*([0-9]+(?:[,.][0-9]*)?)\s*([¥£€$]|[A-Z]{1,3})?\s*@\s*([0-9]+(?:[,.][0-9]*)?)\s*$"#).unwrap();
+                Regex::new(r#"^\s*([0-9]+(?:[,.][0-9]*)?)\s*([¥£€$]|[A-Z]{3})?\s*(?:@\s*([0-9]+(?:[,.][0-9]*)?)\s*)?$"#).unwrap();
         };
-        let captures = if let Some(captures) = RE.captures(s) {
+        let captures = if let Some(captures) = RE.captures(dbg!(s)) {
             captures
         } else {
-            bail!(MSG)
+            bail!("Regex is not a match")
         };
         let amount: f64 = if let Some(amount) = captures.get(1) {
             silly_decimals(amount.as_str())?
         } else {
-            bail!(MSG)
+            bail!("First capture is a decimal number")
         };
+        log::trace!("Parsed amount: {}", amount);
         let currency = if let Some(currency) = captures.get(2) {
             match currency.as_str() {
                 "$" => Currency::USD,
@@ -80,14 +93,17 @@ impl FromStr for Expense {
         } else {
             Currency::EUR
         };
+        log::trace!("Parsed currency: {}", &currency);
 
-        let rate = if let Some(rate) = captures.get() {
-            if rate == Currency::EUR {
+        let rate = if let Some(rate) = captures.get(3) {
+            if currency == Currency::EUR {
                 bail!("Can't have eur AND a rate for converting to euro");
             }
-            let rate = silly_decimals(amount.as_str())?;
+            let rate = silly_decimals(rate.as_str())?;
+            log::trace!("Parsed rate: {}", rate);
             Some(rate)
         } else {
+            log::trace!("Parsed rate: w/o");
             None
         };
         Ok(Expense(amount, currency, rate))
@@ -124,6 +140,20 @@ impl<'de> serde::de::Deserialize<'de> for Expense {
     }
 }
 
+impl fmt::Display for Expense {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:>.02}", self.0)?;
+        if self.currency() != Currency::EUR {
+            write!(f, " {}", self.1.code())?;
+            if let Some(rate) = self.2 {
+                writeln!(f, " @ {} :  {}", rate, self.as_euro())?;
+                return Ok(())
+            }
+        }
+        writeln!(f, "")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,23 +163,23 @@ mod tests {
     fn symbol() {
         assert_matches!(
             Expense::from_str("7.50 €"),
-            Ok(Expense(amount, Currency::EUR)) => {
+            Ok(Expense(amount, Currency::EUR, _)) => {
                 assert_eq!((amount * 100.) as i32, 750);
             }
         );
         assert_matches!(Expense::from_str("7,0 £"),
-        Ok(Expense(amount, Currency::GBP)) => {
+        Ok(Expense(amount, Currency::GBP, _)) => {
             assert_eq!((amount * 100.) as i32, 700);
         });
         assert_matches!(
             Expense::from_str("0,50 $"),
-            Ok(Expense(amount, Currency::USD)) => {
+            Ok(Expense(amount, Currency::USD, _)) => {
                 assert_eq!((amount * 100.) as i32, 50);
             }
         );
         assert_matches!(
             Expense::from_str("11.22 ¥"),
-            Ok(Expense(amount, Currency::JPY)) => {
+            Ok(Expense(amount, Currency::JPY, _)) => {
                 assert_eq!((amount * 100.) as i32, 1122);
             }
         );
@@ -159,25 +189,25 @@ mod tests {
     fn iso4217_code() {
         assert_matches!(
             Expense::from_str("7.50 EUR"),
-            Ok(Expense(amount, Currency::EUR)) => {
+            Ok(Expense(amount, Currency::EUR, _)) => {
                 assert_eq!((amount * 100.) as i32, 750);
             }
         );
         assert_matches!(
             Expense::from_str("200,01 USD"),
-            Ok(Expense(amount, Currency::USD)) => {
+            Ok(Expense(amount, Currency::USD, _)) => {
                 assert_eq!((amount * 100.) as i32, 20001);
             }
         );
         assert_matches!(
             Expense::from_str("500 GBP"),
-            Ok(Expense(amount, Currency::GBP)) => {
+            Ok(Expense(amount, Currency::GBP, _)) => {
                 assert_eq!((amount * 100.) as i32, 50000);
             }
         );
         assert_matches!(
             Expense::from_str("0,50 JPY"),
-            Ok(Expense(amount, Currency::JPY)) => {
+            Ok(Expense(amount, Currency::JPY, _)) => {
                 assert_eq!((amount * 100.) as i32, 50);
             }
         );
@@ -187,7 +217,7 @@ mod tests {
     fn euro_is_base() {
         assert_matches!(
             Expense::from_str("999.99"),
-            Ok(Expense(amount, Currency::EUR)) => {
+            Ok(Expense(amount, Currency::EUR, _)) => {
                 assert_eq!((amount * 100.) as i32, 99999);
             }
         );

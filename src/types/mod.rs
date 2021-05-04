@@ -52,8 +52,8 @@ mod tests {
             date,
             company: "Dodo GmbH".to_owned(),
             description: "Birdy".to_owned(),
-            brutto: Euro::from_str("5 €").unwrap(),
-            netto: Euro::from_str("4 €").unwrap(),
+            brutto: Expense::from_str("5 €").unwrap(),
+            netto: Expense::from_str("4 €").unwrap(),
             tax_total: indexmap::indexmap! {
                 Percentage::from_str("5%").unwrap() => Euro::from_str("1").unwrap(),
             },
@@ -62,8 +62,8 @@ mod tests {
             date,
             company: "Cuba Corp".to_owned(),
             description: "Crops".to_owned(),
-            brutto: Euro::from_str("12.50 €").unwrap(),
-            netto: Euro::from_str("10 €").unwrap(),
+            brutto: Expense::from_str("12.50 €").unwrap(),
+            netto: Expense::from_str("10 €").unwrap(),
             tax_total: indexmap::indexmap! {
                 Percentage::from_str("25%").unwrap() => Euro::from_str("2.50").unwrap(),
             },
@@ -72,8 +72,8 @@ mod tests {
             date,
             company: "Octopus Inc".to_owned(),
             description: "Ink".to_owned(),
-            brutto: Euro::from_str("7 €").unwrap(),
-            netto: Euro::from_str("7 €").unwrap(),
+            brutto: Expense::from_str("7 €").unwrap(),
+            netto: Expense::from_str("7 €").unwrap(),
             tax_total: indexmap::indexmap! {
                 Percentage::from_str("0%").unwrap() => Euro::from_str("0").unwrap(),
             },
@@ -82,8 +82,8 @@ mod tests {
             date,
             company: "Cuba Corp".to_owned(),
             description: "Crops (Moar)".to_owned(),
-            brutto: Euro::from_str("25.00 €").unwrap(),
-            netto: Euro::from_str("20 €").unwrap(),
+            brutto: Expense::from_str("25.00 €").unwrap(),
+            netto: Expense::from_str("20 €").unwrap(),
             tax_total: indexmap::indexmap! {
                 Percentage::from_str("25%").unwrap() => Euro::from_str("5.0").unwrap(),
             },

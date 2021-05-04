@@ -280,11 +280,11 @@ pub fn tabular(
 
     let mut columns = ColumnWidthSet(vec![
         ColumnWidth(Mm(22.).into()),  // date
-        ColumnWidth(Mm(36.).into()),  // company
-        ColumnWidth(Mm(52.).into()),  // description
-        ColumnWidth(Mm(17.5).into()), // netto
+        ColumnWidth(Mm(40.).into()),  // company
+        ColumnWidth(Mm(60.).into()),  // description
+        ColumnWidth(Mm(45.).into()), // netto
         // insert tax ones here
-        ColumnWidth(Mm(17.5).into()), // brutto
+        ColumnWidth(Mm(45.).into()), // brutto
     ]);
 
     use itertools::Itertools;

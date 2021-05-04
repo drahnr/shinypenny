@@ -1,6 +1,7 @@
 use std::io::BufRead;
 use std::path::PathBuf;
 
+use chrono::TimeZone;
 use docopt::Docopt;
 use serde::Deserialize;
 
@@ -48,9 +49,9 @@ struct Args {
     cmd_config: bool,
     flag_date: Option<chrono::NaiveDate>,
     flag_company: Option<String>,
-    flag_brutto: Option<Euro>,
+    flag_brutto: Option<Expense>,
     flag_tax_percent: Option<Percentage>,
-    flag_netto: Option<Euro>,
+    flag_netto: Option<Expense>,
     flag_desc: Option<String>,
     flag_version: bool,
     flag_verbose: Option<usize>,
@@ -84,15 +85,44 @@ fn create_pdf(
     for record in records.into_iter() {
         receipts.push((record.description.as_str(), &record.receipts));
 
-        let brutto = record.brutto;
-        let netto = record.netto;
+        let mut brutto = record.brutto;
+        let brutto_rate = brutto.exchange_rate();
+
+        let mut netto = record.netto;
+        let netto_rate = netto.exchange_rate();
+
+        if brutto.currency() != netto.currency() {
+            bail!("It's highly suspicious having netto and brutto in different currencies");
+        }
+
+        let date = chrono::Utc.from_local_date(&record.date).unwrap();
+
+        // if either is specified, use it for both
+        let rate = match (brutto_rate, netto_rate) {
+            (Some(rate), None) => rate,
+            (None, Some(rate)) => rate,
+            (None, None) => ExchangeBuro::query(date, brutto.currency()),
+            (Some(brutto_rate), Some(netto_rate)) if brutto_rate.approx_eq(netto_rate, float_cmp::F64Margin::default()) => brutto_rate / 2. + netto_rate / 2.,
+            (Some(brutto_rate), Some(netto_rate)) => {
+                bail!("Either only one exchange rate is specified or both must be the same, but they differ: {} vs {}", brutto_rate, netto_rate);
+            }
+        };
+
+        if brutto_rate.is_none() {
+            brutto.set_exchange_rate(rate);
+        }
+
+        if netto_rate.is_none() {
+            netto.set_exchange_rate(rate);
+        }
+
         let percentage = record.tax;
-        if brutto < netto {
+        if brutto.as_euro() < netto.as_euro() {
             bail!("For expenses, `netto` must be less than `brutto`.");
         }
-        let delta: Euro = brutto - netto;
+        let delta: Euro = brutto.as_euro() - netto.as_euro();
 
-        let vat = netto * percentage;
+        let vat = netto.as_euro() * percentage;
         if !&delta.approx_eq(vat, EPSILON) {
             bail!(
                 "The percentage {} derived delta {} does not match the provided delta {} between brutto {} and netto {} with a max epsilon error of {}",
@@ -311,6 +341,12 @@ fn run() -> Result<()> {
         }]
     };
 
+    if log::log_enabled!(log::Level::Trace) {
+        data.iter().enumerate().for_each(|(idx, rec)| {
+            log::trace!("{:03}: {:?}", idx+1, rec);
+        });
+    }
+
     let bankinfo = BankInfo::new(&config.name, config.iban)?;
 
     log::info!("BankInfo: {:?}", &bankinfo);
@@ -434,6 +470,11 @@ mod tests {
             r#"description|company|date                   |path |netto |tax |brutto
 Device: Superblaster 2k21|abc| 2020-09-20   |assets/spensiv.pdf |95.00|0.05| 100.00
 "#,
+            1usize,
+        ),
+        (
+            r#"description|company|date                   |path |netto |tax |brutto
+Device: Superblaster 2k21|abc| 2020-09-20   |assets/spensiv.pdf |95.00 ¥ @ 1.20|0.05| 100.00 JPY"#,
             1usize,
         ),
     ];

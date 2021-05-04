@@ -21,8 +21,8 @@ pub struct Row {
     pub date: Date,
     pub company: String,
     pub description: String,
-    pub brutto: Euro,
-    pub netto: Euro,
+    pub brutto: Expense,
+    pub netto: Expense,
     pub tax_total: indexmap::IndexMap<Percentage, Euro>,
 }
 
@@ -89,8 +89,8 @@ use itertools::Itertools;
 
 impl Totals {
     pub fn add(&mut self, other: &Row) {
-        self.brutto += other.brutto;
-        self.netto += other.netto;
+        self.brutto += other.brutto.as_euro();
+        self.netto += other.netto.as_euro();
 
         for (percent, absolute) in other.tax_total.iter() {
             let val = self.tax_total.entry(*percent).or_default();

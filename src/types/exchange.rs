@@ -7,13 +7,13 @@ pub type ExchangeRate = f64;
 
 /// Exchangerate from currency to EUROs.
 #[derive(Default)]
-struct ExchangeBuro {
-    cache: Arc<Mutex<HashMap<Date, HashMap<Currency, f64>>>>,
+pub struct ExchangeBuro {
+    cache: Arc<Mutex<HashMap<chrono::Date<chrono::Utc>, HashMap<Currency, f64>>>>,
 }
 
 impl ExchangeBuro {
     /// Obtain a exchange rate for a currency at a specific date.
-    fn exchange_rate_by_date(&self, when: Date, currency: Currency) -> Option<f64> {
+    fn exchange_rate_by_date(&self, when: chrono::Date<chrono::Utc>, currency: Currency) -> Option<f64> {
         self.cache
             .lock()
             .unwrap()
@@ -41,20 +41,21 @@ impl ExchangeBuro {
             .map(|rate| *rate)
     }
 
-    pub fn convert(when: Date, expense: Expense) -> (ExchangeRate, Euro) {
+    pub fn query(when: chrono::Date<chrono::Utc>, currency: Currency) -> ExchangeRate {
         lazy_static::lazy_static! {
             static ref EXCHANGE_BURO: ExchangeBuro = ExchangeBuro::default();
         };
-        if expense.currency() == Currency::EUR {
-            (1.0_f64, Euro(expense.amount()))
-        } else {
-            let rate = EXCHANGE_BURO
-                .exchange_rate_by_date(when, expense.currency())
-                .expect("Currency is not supported.");
-            (rate, Euro(expense.amount() * rate))
+        if currency == Currency::EUR {
+            return 1.0
         }
+        let rate = EXCHANGE_BURO
+            .exchange_rate_by_date(when, currency)
+            .expect(format!("Currency {} is not supported.", currency).as_str());
+        rate
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -67,13 +68,9 @@ mod tests {
             .is_test(true)
             .try_init();
         let exb = ExchangeBuro::default();
-        let when = chrono::Local::today();
+        let when = chrono::Local::today().with_timezone(&chrono::Utc);
         assert_matches!(exb.exchange_rate_by_date(when, Currency::USD), Some(rate) => {
             dbg!(rate)
-        });
-        assert_matches!(ExchangeBuro::convert(when, Expense(10., Currency::EUR)), (rate, ten) => {
-            dbg!(rate);
-            assert_eq!(10_i32, ten.0 as i32);
         });
     }
 }
