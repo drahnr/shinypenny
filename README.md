@@ -43,13 +43,13 @@ which resides in (given your username is `Alice`)
 
 ## CSV
 
-The format is determined by by the header row, which can be omitted if the order
+The format is determined by the header row, which can be omitted if the order
 as kept in the example below. If the columns are re-ordered, the header tags must be provided
 with the names as shown below.
 
-By default `|` is used as separator, a secondary attempt is made with `;`.
+By default `|` is used as separator, if parsing fails with that assumption, a secondary parse attempt is made with `;`.
 
-Numbers and decimals may be delimited with `.` characters independent of the locale - `,` is not a valid decimal separator, see [the rust `f64` grammar](https://doc.rust-lang.org/std/primitive.f64.html#grammar).
+Numbers and decimals may be delimited with `.` characters independent of the locale - `,` is not a valid decimal separator, see [the rust `f64` grammar](https://doc.rust-lang.org/std/primitive.f64.html#grammar) - this will change with `v0.4.0` onwards and `3,5` will be accepted as well.
 
 Receipt paths are relative to the `cwd`.
 
@@ -75,7 +75,7 @@ date      |company     |description                    |netto |tax |brutto|path
 
 This is a purely necessity driven project.
 
-* [ ] Support entries other than euros (€)
+* [x] Support entries other than euros (€) https://github.com/drahnr/shinypenny/issues/2 
 * [ ] Allow specifying a pivot pdf page with a designate table area
 * [ ] Replace `0.00` values with a `-` within the table
 
