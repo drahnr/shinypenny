@@ -365,7 +365,7 @@ pub fn tabular(
 
         let mut anchor = Point {
             x: Pt::from(DIN_A4.width) * 0.25,
-            y: Pt::from(DIN_A4.height) * 0.48,
+            y: Pt::from(DIN_A4.height) * 0.25,
         };
         for (item, value) in HEADER.iter().zip(rows) {
             text(
