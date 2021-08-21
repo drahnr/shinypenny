@@ -19,8 +19,8 @@ pub struct Record {
 #[derive(Debug, Clone)]
 pub struct Row {
     pub date: Date,
-    pub company: String,
     pub description: String,
+    pub company: String,
     pub brutto: Expense,
     pub netto: Expense,
     pub tax_total: indexmap::IndexMap<Percentage, Euro>,

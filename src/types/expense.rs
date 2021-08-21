@@ -34,11 +34,11 @@ impl Expense {
 
     pub fn as_euro(&self) -> Euro {
         if self.currency() == Currency::EUR {
-            return Euro(self.amount())
+            return Euro(self.amount());
         }
-        self.exchange_rate().map(|rate| {
-            Euro(rate * self.amount())
-        }).expect("Assumes an exchange rate was set.")
+        self.exchange_rate()
+            .map(|rate| Euro(rate * self.amount()))
+            .expect("Assumes an exchange rate was set.")
     }
 }
 
@@ -60,7 +60,6 @@ fn silly_decimals(fragment: &str) -> Result<f64> {
 impl FromStr for Expense {
     type Err = Error;
     fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
-        const MSG: &'static str = "Is not an acceptable euro value";
         lazy_static! {
             static ref RE: Regex =
                 Regex::new(r#"^\s*([0-9]+(?:[,.][0-9]*)?)\s*([¥£€$]|[A-Z]{3})?\s*(?:@\s*([0-9]+(?:[,.][0-9]*)?)\s*)?$"#).unwrap();
@@ -147,7 +146,7 @@ impl fmt::Display for Expense {
             write!(f, " {}", self.1.code())?;
             if let Some(rate) = self.2 {
                 writeln!(f, " @ {} :  {}", rate, self.as_euro())?;
-                return Ok(())
+                return Ok(());
             }
         }
         writeln!(f, "")

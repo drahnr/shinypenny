@@ -71,6 +71,7 @@ fn create_pdf(
     companyinfo: CompanyInfo,
     learning_budget: bool,
 ) -> Result<Document> {
+    let separation_page = false;
     let mut documents = Vec::with_capacity(records.len() + 1);
 
     let mut rows = Vec::with_capacity(records.len());
@@ -102,7 +103,11 @@ fn create_pdf(
             (Some(rate), None) => rate,
             (None, Some(rate)) => rate,
             (None, None) => ExchangeBuro::query(date, brutto.currency()),
-            (Some(brutto_rate), Some(netto_rate)) if brutto_rate.approx_eq(netto_rate, float_cmp::F64Margin::default()) => brutto_rate / 2. + netto_rate / 2.,
+            (Some(brutto_rate), Some(netto_rate))
+                if brutto_rate.approx_eq(netto_rate, float_cmp::F64Margin::default()) =>
+            {
+                brutto_rate / 2. + netto_rate / 2.
+            }
             (Some(brutto_rate), Some(netto_rate)) => {
                 bail!("Either only one exchange rate is specified or both must be the same, but they differ: {} vs {}", brutto_rate, netto_rate);
             }
@@ -169,7 +174,9 @@ fn create_pdf(
     log::info!("Number integrity checks and folding complete");
 
     for (desc, receipt_paths) in receipts {
-        documents.push(pdf::separation_page(desc)?);
+        if separation_page {
+            documents.push(pdf::separation_page(desc)?);
+        }
         for path in receipt_paths {
             let document = pdf::load_receipt(path)?;
             documents.push(document);
@@ -343,7 +350,7 @@ fn run() -> Result<()> {
 
     if log::log_enabled!(log::Level::Trace) {
         data.iter().enumerate().for_each(|(idx, rec)| {
-            log::trace!("{:03}: {:?}", idx+1, rec);
+            log::trace!("{:03}: {:?}", idx + 1, rec);
         });
     }
 

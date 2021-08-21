@@ -279,9 +279,9 @@ pub fn tabular(
     .collect::<Vec<_>>();
 
     let mut columns = ColumnWidthSet(vec![
-        ColumnWidth(Mm(22.).into()),  // date
-        ColumnWidth(Mm(40.).into()),  // company
-        ColumnWidth(Mm(60.).into()),  // description
+        ColumnWidth(Mm(22.).into()), // date
+        ColumnWidth(Mm(40.).into()), // company
+        ColumnWidth(Mm(60.).into()), // description
         ColumnWidth(Mm(45.).into()), // netto
         // insert tax ones here
         ColumnWidth(Mm(45.).into()), // brutto

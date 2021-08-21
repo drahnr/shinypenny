@@ -13,7 +13,11 @@ pub struct ExchangeBuro {
 
 impl ExchangeBuro {
     /// Obtain a exchange rate for a currency at a specific date.
-    fn exchange_rate_by_date(&self, when: chrono::Date<chrono::Utc>, currency: Currency) -> Option<f64> {
+    fn exchange_rate_by_date(
+        &self,
+        when: chrono::Date<chrono::Utc>,
+        currency: Currency,
+    ) -> Option<f64> {
         self.cache
             .lock()
             .unwrap()
@@ -46,7 +50,7 @@ impl ExchangeBuro {
             static ref EXCHANGE_BURO: ExchangeBuro = ExchangeBuro::default();
         };
         if currency == Currency::EUR {
-            return 1.0
+            return 1.0;
         }
         let rate = EXCHANGE_BURO
             .exchange_rate_by_date(when, currency)
@@ -54,8 +58,6 @@ impl ExchangeBuro {
         rate
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

@@ -10,9 +10,7 @@ pub use iso_currency::Currency;
 
 use fs_err as fs;
 
-use float_cmp::ApproxEq;
 use std::fmt;
-use std::str::FromStr;
 
 mod bankinfo;
 mod companyinfo;
