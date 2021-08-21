@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use chrono::TimeZone;
 use docopt::Docopt;
+use itertools::Itertools;
 use serde::Deserialize;
 
 use fs_err as fs;
@@ -158,8 +159,6 @@ fn create_pdf(
 
     // fill up all rows to the same number
     for row in rows.iter_mut() {
-        use itertools::Itertools;
-
         for percentage in tax_percentage_set.iter() {
             row.tax_total.entry(*percentage).or_default();
         }
@@ -240,17 +239,26 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
+    let bankinfo = BankInfo::new(&config.name, config.iban)?;
+
     let dest = if let Some(dest) = args.arg_dest {
         log::debug!("Using provides destination path: {}", dest.display());
         dest
     } else {
+        let cwd = std::env::current_dir().expect("CWD must exists");
+        let rolling_number = cwd
+            .file_name()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default();
         let today = chrono::Local::today();
-        let file_name = today
-            .format("reimbursement_request_%Y_%m_%d.pdf")
-            .to_string();
-        let dest = std::env::current_dir()
-            .expect("CWD must exists")
-            .join(file_name);
+        let file_name = format!(
+            "{}__{}__{}",
+            bankinfo.name.split_whitespace().join("_").to_lowercase(),
+            rolling_number,
+            today.format("reimbursement_request_%Y_%m_%d.pdf"),
+        );
+        let dest = cwd.join(file_name);
         log::info!("Using default destination path {}", dest.display());
         dest
     };
@@ -353,8 +361,6 @@ fn run() -> Result<()> {
             log::trace!("{:03}: {:?}", idx + 1, rec);
         });
     }
-
-    let bankinfo = BankInfo::new(&config.name, config.iban)?;
 
     log::info!("BankInfo: {:?}", &bankinfo);
     log::info!("Institute: {}", bankinfo.institute().unwrap());
