@@ -1795,7 +1795,7 @@ dependencies = [
 
 [[package]]
 name = "shinypenny"
-version = "0.3.4"
+version = "0.3.5-alpha.0"
 dependencies = [
  "assert_matches",
  "chrono",
