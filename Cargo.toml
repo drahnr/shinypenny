@@ -2,7 +2,7 @@
 name = "shinypenny"
 version = "0.3.5-alpha.0"
 authors = ["Bernhard Schuster <bernhard@ahoi.io>"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0 AND MIT"
 description = "A niftly little helper program creating reimbursement requests in pdf form from a csv or commandline."
 repository = "https://github.com/drahnr/shinypenny"
@@ -21,12 +21,12 @@ log = "0.4"
 pretty_env_logger = "0.4"
 lazy_static = "1.4"
 indexmap = "1"
-color-eyre = "0.5"
-dirs = "3"
+color-eyre = "0.6"
+dirs = "4"
 regex = "1"
-float-cmp = "0.8"
-lopdf = "0.26.0"
-printpdf = { version = "=0.3.4", features = [
+float-cmp = "0.9"
+lopdf = "0.27"
+printpdf = { version = "*", features = [
     "jpeg_rayon",
     "webp",
     "embedded_images"
@@ -34,16 +34,16 @@ printpdf = { version = "=0.3.4", features = [
 iban_validate = { version = "4", features = ["std", "serde"] }
 fints-institute-db = "1"
 chrono = { version = "0.4", features = ["serde", "std", "clock"] }
-harfbuzz_rs = { version = "1", features = [
+harfbuzz_rs = { version = "2", features = [
     "build-native-harfbuzz",
     "build-native-freetype"
 ] }
 toml = "0.5"
 fs-err = "2"
 itertools = "0.10"
-infer = "0.4.0"
+infer = "0.7"
 # exchange rates
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "blocking"] }
 tokio = { version = "1", features = ["full"] }
 iso_currency = { version = "0.4.1", features = ["with-serde"] }
 
