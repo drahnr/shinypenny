@@ -26,7 +26,7 @@ dirs = "4"
 regex = "1"
 float-cmp = "0.9"
 lopdf = "0.27"
-printpdf = { version = "*", features = [
+printpdf = { version = "0.3.4", features = [
     "jpeg_rayon",
     "webp",
     "embedded_images"
