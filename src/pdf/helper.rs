@@ -215,6 +215,9 @@ pub fn tabular(
     let font = doc.add_external_font(TTF_REGULAR)?;
     let bold = doc.add_external_font(TTF_BOLD)?;
 
+    // font size
+    let size = 9;
+
     let black = Color::Rgb(Rgb {
         r: 0.,
         g: 0.,
@@ -238,7 +241,7 @@ pub fn tabular(
 
     let style0 = RenderStyle {
         font: font.clone(),
-        size: 11,
+        size,
         foreground: black.clone(),
         background: gray.clone(),
         alignment: Alignment::Right,
@@ -246,7 +249,7 @@ pub fn tabular(
 
     let style1 = RenderStyle {
         font: font.clone(),
-        size: 11,
+        size,
         foreground: black.clone(),
         background: gray.clone(),
         alignment: Alignment::Right,
@@ -254,7 +257,7 @@ pub fn tabular(
 
     let style2 = RenderStyle {
         font: bold,
-        size: 12,
+        size,
         foreground: black.clone(),
         background: white.clone(),
         alignment: Alignment::Right,
@@ -278,13 +281,26 @@ pub fn tabular(
     .map(|x| x.to_owned())
     .collect::<Vec<_>>();
 
+    let date_column_width = 0.08;
+    let company_column_width = 0.18;
+    let description_column_width = 0.28;
+    let netto_column_width = 0.09;
+
+    let tax_column_width = 0.065;
+    // insert tax % here
+    let brutto_column_width = 0.09;
+
+    fn convert(percentage: f64) -> ColumnWidth {
+        // skip 1mm on each side, makes it printable
+        let printable_sheet_width = DIN_A4.width - Mm(1.) * 2.;
+        ColumnWidth((printable_sheet_width * percentage).into())
+    }
+
     let mut columns = ColumnWidthSet(vec![
-        ColumnWidth(Mm(22.).into()), // date
-        ColumnWidth(Mm(40.).into()), // company
-        ColumnWidth(Mm(60.).into()), // description
-        ColumnWidth(Mm(45.).into()), // netto
-        // insert tax ones here
-        ColumnWidth(Mm(45.).into()), // brutto
+        convert(date_column_width),
+        convert(company_column_width),
+        convert(description_column_width),
+        convert(netto_column_width),
     ]);
 
     use itertools::Itertools;
@@ -296,9 +312,11 @@ pub fn tabular(
         .sorted_by(|p1, p2| p1.cmp(&p2))
         .rev()
     {
-        columns.0.insert(4, ColumnWidth(Mm(14.).into()));
+        columns.0.insert(4, convert(tax_column_width));
         headers.insert(4, format!("{} %", percentage));
     }
+
+    columns.0.push(convert(brutto_column_width));
 
     let total_width = columns.total_width();
 

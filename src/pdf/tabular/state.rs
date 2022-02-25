@@ -36,6 +36,9 @@ impl RenderState {
     pub(super) fn advance_to_next_row(&mut self) {
         self.vcursor -= self.vstep;
     }
+    pub(super) fn advance_v(&mut self, x: Pt) {
+        self.vcursor -= x;
+    }
     pub(super) fn advance_to_next_column(&mut self) {
         self.hcursor += 1;
     }

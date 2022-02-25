@@ -109,6 +109,8 @@ where
             // finally bottom line
             state.advance_to_next_row();
             self.hline(&state)?;
+            state.advance_v(Pt(2.));
+            self.hline(&state)?;
         }
 
         Ok(())
@@ -199,13 +201,15 @@ where
         };
 
         self.active_layer.save_graphics_state();
-        self.active_layer.save_graphics_state();
-        self.active_layer.set_fill_color(style.background.clone());
+        {
+            self.active_layer.save_graphics_state();
+            self.active_layer.set_fill_color(style.background.clone());
 
-        self.active_layer.add_shape(line);
+            self.active_layer.add_shape(line);
 
-        self.active_layer.restore_graphics_state();
-        self.active_layer.set_fill_color(style.foreground.clone());
+            self.active_layer.restore_graphics_state();
+            self.active_layer.set_fill_color(style.foreground.clone());
+        }
 
         self.hline(&*state)?;
         state.reset_column();
@@ -215,7 +219,10 @@ where
             state.advance_to_next_column();
         }
         state.advance_to_next_row();
-        self.hline(&*state)?; // TODO make it double
+
+        self.hline(&*state)?; // make bottom line
+        state.advance_v(Pt(1.0));
+        self.hline(&*state)?; // and make it thick
 
         self.active_layer.restore_graphics_state();
         Ok(())
